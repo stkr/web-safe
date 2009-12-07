@@ -1,0 +1,3 @@
+[submodule "external/gibberish-aes"]
+	path = external/gibberish-aes
+	url = git://github.com/markpercival/gibberish-aes.git
