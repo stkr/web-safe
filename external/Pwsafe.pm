@@ -1,5 +1,4 @@
 package Crypt::Pwsafe;
-# $Id$
 
 =head1 NAME
 
@@ -11,8 +10,6 @@ use warnings;
 use strict;
 
 use FileHandle;
-use Term::ReadKey;  # comment me out
-#use autouse Term::ReadKey;
 my $SHA = "Digest::SHA";
 eval "use $SHA";
 if ($@) { $SHA .= "::PurePerl"; eval "use $SHA" }
@@ -240,17 +237,6 @@ sub _stretch_key {
 	}
 	$sha->add($key);
 	return $key if $sha->digest eq $fhash;
-}
-
-sub enter_combination {
-	print "Enter password safe combination: ";
-	local $SIG{__DIE__} = { ReadMode 0 };
-	ReadMode 2;
-	my $pass = <STDIN>;
-	ReadMode 0;
-	chomp($pass);
-	print "\n";
-	return $pass;
 }
 
 sub get_password {
