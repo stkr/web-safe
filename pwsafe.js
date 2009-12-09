@@ -1,16 +1,17 @@
 
 function GetMasterPassword()
 {
-  return top.headline.document.ResponseForm.master_password.value;
+  return top.headline.master_password;
 }
 
 function GetRequestKey()
 {
-  return top.headline.document.ResponseForm.request_key.value;
+  return top.headline.request_key;
 }
 
 function SetRequestKey(request_key)
 {
+  top.headline.request_key = request_key;
   top.headline.document.ResponseForm.request_key.value = request_key;
 }
 
