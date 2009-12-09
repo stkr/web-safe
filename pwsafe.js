@@ -67,16 +67,32 @@ function GenerateRandomStr(byte_count)
     rng.nextBytes(bytes);
     str += String.fromCharCode(bytes[0]);
   }
-  alert(str);
   return str;
 }
 
-/** Encrypt with the RSA public key and store in the form */
+/** Encrypt with the RSA public key and store in the RequestForm. */
 function EncryptAndStoreRSA(name, value)
 {
   var encrypted = window.rsa.encrypt(value);
   if(encrypted) {
     document.RequestForm[name].value = hex2b64(encrypted);
+  }
+}
+
+/** Encrypt with AES and store in the RequestForm.
+ *  The key needs to have a length of 32 chars (265 bit) and
+ *  is expected to be a binary string. */
+function EncryptAndStoreAES(name, value, key)
+{
+  // Sanitiy check the key, so nothing unencrypted gets sent.
+  if (key.length != 32) {
+    alert('EncryptAndStoreAES: key.length != 32.');
+    return;
+  }
+  var encrypted = GibberishAES.enc(value, key);
+  // Note: GibberishAES.enc does return base64 encoded data already.
+  if(encrypted) {
+    document.RequestForm[name].value = encrypted;
   }
 }
 
@@ -111,7 +127,7 @@ function EncryptRequest()
   if (request_key.length != 32) {
     // TODO: Create a new request key.
     request_key = GenerateRandomStr(32);
-    request_key = '12345678901234567890123456789012';
+    request_key = 'ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEF';
     SetRequestKey(request_key);
   }
   var encryption_key = GenerateRandomStr(32);
@@ -119,7 +135,8 @@ function EncryptRequest()
 
   // so we can encrypt everything now.
   EncryptAndStoreRSA('encryption_key', encryption_key);
-//  EncryptAndStoreAES('encryption_key', encryption_key);
+  EncryptAndStoreAES('request_key', request_key, encryption_key);
+
 // TODO: to be continued.
   document.RequestForm.submit();
   return true;
