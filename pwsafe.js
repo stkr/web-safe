@@ -62,7 +62,7 @@ function GetDecryptedPage()
     page = decodeBase64(page64);
   }
   // TODO: sanity check the page contents.
-  if (page.substr(1,4) != 'test') {
+  if (page.substr(0,4) != 'test') {
     alert('error decrypting the page');
     return '';
   }
@@ -95,7 +95,10 @@ function GenerateRandomStr(byte_count)
 /** Encrypt with the RSA public key and store in the RequestForm. */
 function EncryptAndStoreRSA(name, value)
 {
-  var encrypted = window.rsa.encrypt(value);
+  // initialize the rsa object.
+  rsa = new RSAKey();
+  rsa.setPublic(GetModulus(), GetPublicExponent());
+  var encrypted = rsa.encrypt(value);
   if(encrypted) {
     document.RequestForm[name].value = hex2b64(encrypted);
   }
@@ -108,7 +111,7 @@ function EncryptAndStoreAES(name, value, key)
 {
   // Sanitiy check the key, so nothing unencrypted gets sent.
   if (key.length != 32) {
-    alert('EncryptAndStoreAES: key.length != 32.');
+    alert('Error: EncryptAndStoreAES: key.length != 32.');
     return;
   }
   var encrypted = GibberishAES.enc(value, key);
@@ -172,11 +175,6 @@ function EvPwsafeBodyLoad()
 
   // Seed the random number generator.
   rng_seed_time();
-
-  // initialize the rsa object.
-  window.rsa = new RSAKey();
-  window.rsa.setPublic(GetModulus(), GetPublicExponent());
-  return true;
 }
 
 function EvPwsafeBodyKeyPress()
