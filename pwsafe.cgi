@@ -51,7 +51,7 @@ sub JavascriptBase64Format($)
 {
   my $result = $_[0];
   $result =~ s/\n|\r//g;
-#  $result = join("' + \"\\n\" + \n  '", unpack('(A64)*', $result ))."\n";
+#  $result = join("' + \"\\n\" + \n  '", unpack('(A64)*', $result ))."' + \"\\n\" + \n  '";
   return $result;
 }
 
