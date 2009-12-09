@@ -1,6 +1,7 @@
 #! /usr/bin/perl
 
 use strict;
+use warnings;
 use CGI;
 use CGI::Carp 'fatalsToBrowser';
 # Avoid DoS attacks:
@@ -17,6 +18,19 @@ my $key = '';
 # system("openssl genrsa -f4 1024 > $key_dir$client_id.pem");
 my $debug;
 
+# Used (by client) for AES encryption of the request.
+my $encryption_key = '';
+
+# Used (by server) for AES encryption of the response. The value is chosen
+# by the client and is different for each request. It is contained in
+# the request.
+my $request_key = '';
+
+# If the page contains sensitive data, this flag should be set to 1.
+# When assembling the page, it is checked and if no request key was set,
+# it is refused to send data.
+my $encryption_needed = 0;
+
 # open(OPENSSL, 'openssl genrsa 1024 |') || die "Unable to open openssl: $!\n";
 # while (<OPENSSL>) { $key .= $_; }
 # close(OPENSSL);
@@ -27,6 +41,19 @@ my $public_exponent = '10001';
 # my $modulus = `openssl rsa -noout -modulus < \"$key_dir$client_id.pem\"`;
 my $modulus = 'C4600647BFA5697D5734471004A2324955ADC7EE7608694E993BB9BE446248A2EC147178FD8C5FC0635E264151272C47BB32AE005477459F42FD3BAFE3B5E0FA30799F070E83291CCFE3E3DED0CAD92C7F4AAF150233EEE2EBE3AADFD6762C3D68EE8200DFF3C04A065CF2F40671AA747C06F2D33AB2099610627AB8E3C3D49D';
 $modulus =~ s/Modulus=//;
+
+
+# Reformat a base64 encoded string so it matches a format which
+# can be written to a javascript section in the html file.
+# Params:
+#   - A base64 encoded value with arbitrary newlines.
+sub JavascriptBase64Format($)
+{
+  my $result = $_[0];
+  $result =~ s/\n|\r//g;
+#  $result = join("' + \"\\n\" + \n  '", unpack('(A64)*', $result ))."\n";
+  return $result;
+}
 
 
 # Reformat a base64 encoded string so it matches the format expected
@@ -43,6 +70,7 @@ sub OpensslBase64Format($)
   return $result;
 }
 
+
 # Decrypt a base64 encoded string using openssl.
 # Params:
 #   - A base64 encoded rsa encrypted string.
@@ -52,14 +80,18 @@ sub OpensslRsaDecrypt($)
   my $result = ` echo \"$msg\" | openssl base64 -d | openssl rsautl -decrypt -inkey \"$key_dir$client_id.pem\" `;
 }
 
-# Decrypt a base64 encoded aes-256-cbc encrypted string using openssl.
+
+# Call openssl enc for aes encryption or decryption.
 # Params:
-#   - A base64 encoded encrypted string.
-#   - The decryption key (binary).
-sub OpensslAesDecrypt($$)
+#   - A string which is en/decrypted.
+#   - The en/decryption key (binary).
+#   - 'E' 'e' or 'D' 'd' for selecting encryption or decryption.
+sub OpensslAesCall($$$)
 {
   my $msg = OpensslBase64Format($_[0]);
   my $key = $_[1];
+  my $direction = lc($_[2]);
+  if (! $direction =~ /e|d/) { die "OpensslAesCall invoked with illegal direction."; }
 
   # Create two pipes to feed data to the openssl process and make them
   # flush on every print.
@@ -87,7 +119,13 @@ sub OpensslAesDecrypt($$)
 	close OPENSSL_MSG_WRITE;
 	my $fd_pass = fileno(OPENSSL_KEY_READ);
 	my $fd_in = fileno(OPENSSL_MSG_READ);
-	my $result = `openssl enc -d -aes-256-cbc -a -pass file:/proc/$$/fd/$fd_pass -in /proc/$$/fd/$fd_in `;
+  my $result;
+  if ($direction eq 'e') {
+    $result = `openssl enc -e -aes-256-cbc -a -pass file:/proc/$$/fd/$fd_pass -in /proc/$$/fd/$fd_in `;
+  }
+  elsif ($direction eq 'd') {
+    $result = `openssl enc -d -aes-256-cbc -a -pass file:/proc/$$/fd/$fd_pass -in /proc/$$/fd/$fd_in `;
+  }
   close OPENSSL_KEY_READ;
   close OPENSSL_MSG_READ;
 
@@ -97,15 +135,35 @@ sub OpensslAesDecrypt($$)
   return $result;
 }
 
+
+# Encrypt a string using openssl aes-256-cbc encryption and base64 encoding.
+# Params:
+#   - The string to encrypt.
+#   - The encryption key (binary).
+sub OpensslAesEncrypt($$)
+{
+  OpensslAesCall($_[0], $_[1], 'e');
+}
+
+
+# Decrypt a base64 encoded aes-256-cbc encrypted string using openssl.
+# Params:
+#   - A base64 encoded encrypted string.
+#   - The decryption key (binary).
+sub OpensslAesDecrypt($$)
+{
+  OpensslAesCall($_[0], $_[1], 'd');
+}
+
 if ($query->param()) {
-  my $encryption_key = OpensslRsaDecrypt($query->param('encryption_key'));
-  my $request_key = OpensslAesDecrypt($query->param('request_key'), $encryption_key);
+  $encryption_key = OpensslRsaDecrypt($query->param('encryption_key'));
+  $request_key = OpensslAesDecrypt($query->param('request_key'), $encryption_key);
   $debug .= "encryption_key: $encryption_key<br />\n";
   $debug .= "request_key: $request_key<br />\n";
 }
 
 # Generate the page contents and save them to $page.
-my $page = '';
+my $page = 'test';
 # The ResponseForm contains only data from the server to the client.
 $page .= $query->start_form(-name=>'ResponseForm',
                             -onSubmit=>'return false');
@@ -140,10 +198,22 @@ $page .= $query->endform;
 #
 #$page .= 'This is the alternative text!';
 
-# Finally base64 encode the page so it can be safely inserted into
-# the javascript section.
-my $page64 = encode_base64($page);
-$page64 =~  s:\n:' + \"\\n\" + \n  ':g;
+# Finally encrypt and base64 encode the page so it can be safely
+# inserted into the javascript section.
+my $page64 = '';
+if ($request_key eq '') {
+  if ($encryption_needed) {
+    # TODO: here, a link to the start page should be given to
+    # restart the process.
+    $page = 'No encryption key was specified for this request.';
+  }
+  $page64 = encode_base64($page);
+}
+else {
+  $page64 = OpensslAesEncrypt($page, $request_key);
+}
+$page64 = JavascriptBase64Format($page64);
+
 
 
 # Write the page contents to the client.
@@ -201,8 +271,8 @@ print $query->start_html(-dtd=>1,
 
 
 print '<div id="pwsafe_gui_content"></div>';
-print $page;
-print $debug;
-print localtime();
+# print $page;
+# print $debug;
+# print localtime();
 
 print $query->end_html();

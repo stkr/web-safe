@@ -47,6 +47,27 @@ function ByteArrayToStr(&array)
 }
 */
 
+/** Decrypt the base64 encoded encrypted page using the request key.
+ * If no request key is set, it is just base64 decoded. */
+function GetDecryptedPage()
+{
+  var request_key = GetRequestKey();
+  var page;
+  if (request_key.length == 32) {
+    page = GibberishAES.dec(page64, request_key);
+    // Note: GibberishAES.dec expects base64 encoded data.
+  }
+  else {
+    page = decodeBase64(page64);
+  }
+  // TODO: sanity check the page contents.
+  if (page.substr(1,4) != 'test') {
+    alert('error decrypting the page');
+    return '';
+  }
+  return page;
+}
+
 /** Return a byte array containing byte_count random bytes. */
 function GenerateRandom(byte_count)
 {
@@ -146,7 +167,7 @@ function EvPwsafeBodyLoad()
 {
   // Write the page contents from the base64 encoded encrypted string passed
   // by the server
-  // document.getElementById('pwsafe_gui_content').innerHTML = decodeBase64(page64);
+  document.getElementById('pwsafe_gui_content').innerHTML = GetDecryptedPage()
 
   // Seed the random number generator.
   rng_seed_time();
