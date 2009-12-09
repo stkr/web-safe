@@ -83,12 +83,13 @@ sub OpensslRsaDecrypt($)
 
 # Call openssl enc for aes encryption or decryption.
 # Params:
-#   - A string which is en/decrypted.
+#   - A string which is en/decrypted. This is passed as is to openssl.
+#     So be sure to have formatted it correctly.
 #   - The en/decryption key (binary).
 #   - 'E' 'e' or 'D' 'd' for selecting encryption or decryption.
 sub OpensslAesCall($$$)
 {
-  my $msg = OpensslBase64Format($_[0]);
+  my $msg = $_[0];
   my $key = $_[1];
   my $direction = lc($_[2]);
   if (! $direction =~ /e|d/) { die "OpensslAesCall invoked with illegal direction."; }
@@ -152,7 +153,7 @@ sub OpensslAesEncrypt($$)
 #   - The decryption key (binary).
 sub OpensslAesDecrypt($$)
 {
-  OpensslAesCall($_[0], $_[1], 'd');
+  OpensslAesCall(OpensslBase64Format($_[0]), $_[1], 'd');
 }
 
 if ($query->param()) {
