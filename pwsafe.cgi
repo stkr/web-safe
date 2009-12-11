@@ -26,6 +26,7 @@ use Pwsafe;
 
 my $base_uri='/pwsafe';
 my $key_dir='/srv/www/pwsafe/data/';
+my $safe_dir='/srv/www/pwsafe/safes/';
 my $query = new CGI;
 
 use MIME::Base64;
@@ -172,6 +173,40 @@ sub OpensslAesDecrypt($$)
   OpensslAesCall(OpensslBase64Format($_[0]), $_[1], 'd');
 }
 
+sub OpenPwsafe($$)
+{
+  my $file = shift;
+  my $key = shift;
+  my $pwsafe = Crypt::Pwsafe->new($file, $key);
+  return $pwsafe;
+}
+
+
+# Generate a password file list and return the html code.
+sub PrintPasswordFileList()
+{
+  my $result;
+  my @list;
+
+  opendir(DIR, $safe_dir);
+  my @files = readdir(DIR);
+  closedir(DIR);
+  foreach (@files) {
+    if (($_ ne '.') && ($_ ne '..')) {
+      my ($filename, $directories, $suffix) = fileparse($_);
+      push(@list, $query->li($query->a({href=>"javascript: OpenFile('$filename')"}, $filename)));
+    }
+  }
+
+  if (length(@list > 0)) {
+    $result .= $query->ul(@list);
+  }
+  return $result;
+}
+
+$debug .= PrintPasswordFileList();
+
+# Handle the input parameters.
 if ($query->param()) {
   $encryption_key = OpensslRsaDecrypt($query->param('encryption_key'));
   $request_key = OpensslAesDecrypt($query->param('request_key'), $encryption_key);
@@ -288,8 +323,9 @@ print $query->start_html(-dtd=>1,
 
 
 print '<div id="pwsafe_gui_content"></div>';
+print '<div id="debug"></div>';
 # print $page;
-# print $debug;
+print $debug;
 # print localtime();
 
 print $query->end_html();
