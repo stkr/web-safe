@@ -53,6 +53,10 @@ function ByteArrayToStr(&array)
 function GetDecryptedPage()
 {
   var request_key = GetRequestKey();
+
+  document.getElementById('debug').innerHTML += "js: request_key(base64): " + encodeBase64(request_key) + " <br />\n";
+  document.getElementById('debug').innerHTML += "js: request_key(hex): " + encodeHex(request_key) + " <br />\n";
+
   var page;
   if (request_key.length == 32) {
     page = GibberishAES.dec(page64, request_key);
@@ -69,7 +73,9 @@ function GetDecryptedPage()
   return page;
 }
 
-/** Return a byte array containing byte_count random bytes. */
+/** Return a byte array containing byte_count random bytes.
+    Attention: there might be are null bytes and newline
+    characters in the array! */
 function GenerateRandom(byte_count)
 {
   var rng = new SecureRandom();
@@ -80,13 +86,25 @@ function GenerateRandom(byte_count)
 }
 
 /** Return a random binary string with byte_count bytes. */
-function GenerateRandomStr(byte_count)
+function GenerateRandomStr(byte_count, is_key)
 {
   var rng = new SecureRandom();
   var str = '';
   var bytes = new Array(); bytes.length = 1;
   for (var i = 0; i < byte_count; ++i){
     rng.nextBytes(bytes);
+
+    // do not allow 0 and 10 (newline) to be part of the random number if
+    // generating a key.
+    // those are not treated correctly when passed to openssl on te server
+    // side.
+    if ((is_key == true) || (is_key == null)) {
+      while ((bytes[0] == 0) | (bytes[0] == 10)) {
+        rng.nextBytes(bytes);
+      }
+    }
+
+    // ntos converts a number to its binary representation. Found in encoding.js.
     str += String.fromCharCode(bytes[0]);
   }
   return str;
@@ -152,11 +170,11 @@ function EncryptRequest()
   if (request_key.length != 32) {
     // TODO: Create a new request key.
     request_key = GenerateRandomStr(32);
-    request_key = 'ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEF';
+//    request_key = 'ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEF';
     SetRequestKey(request_key);
   }
   var encryption_key = GenerateRandomStr(32);
-  encryption_key = '12345678901234567890123456789012';
+//  encryption_key = '12345678901234567890123456789012';
 
   // so we can encrypt everything now.
   EncryptAndStoreRSA('encryption_key', encryption_key);
@@ -171,7 +189,7 @@ function EvPwsafeBodyLoad()
 {
   // Write the page contents from the base64 encoded encrypted string passed
   // by the server
-  document.getElementById('pwsafe_gui_content').innerHTML = GetDecryptedPage()
+  document.getElementById('pwsafe_gui_content').innerHTML = GetDecryptedPage();
 
   // Seed the random number generator.
   rng_seed_time();
