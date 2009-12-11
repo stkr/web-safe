@@ -8,6 +8,22 @@ use CGI::Carp 'fatalsToBrowser';
 $CGI::POST_MAX=1024 * 100;  # max 100K posts
 $CGI::DISABLE_UPLOADS = 1;  # no uploads
 
+use File::Basename;
+
+# Using the Crypt::Pwsafe module found in CPAN for decrypting the
+# database. Requires the modules Crypt::Twofish and ecb end cbc encryption
+# modules. In ubuntu 9.10 the required packages are
+# libcrypt-twofish-perl, libcrypt-ecb-perl and libcrypt-cbc-perl.
+#
+# Notes on the usage of the Pwsafe module:
+#   - The clumsy method of accessing entries with username@title prevents
+#     the usage of the @ character in the username or title.
+#
+# Modifications to the Pwsafe module:
+#   - Removed keyboard handling code. This is a webservice and uses no
+#     keyboard at all
+use Pwsafe;
+
 my $base_uri='/pwsafe';
 my $key_dir='/srv/www/pwsafe/data/';
 my $query = new CGI;
