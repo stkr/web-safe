@@ -65,8 +65,9 @@ function GetDecryptedPage()
   else {
     page = decodeBase64(page64);
   }
-  // TODO: sanity check the page contents.
-  if (page.substr(0,4) != 'test') {
+  // Look for the known start string to check if
+  // decryption was successful.
+  if (page.substr(0,30) != '<!-- pwsafe-web page start -->') {
     alert('error decrypting the page');
     return '';
   }

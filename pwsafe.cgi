@@ -214,8 +214,11 @@ if ($cgi->param()) {
   $debug .= "request_key: $request_key<br />\n";
 }
 
+
 # Generate the page contents and save them to $page.
-my $page = 'test';
+# The first few characters contain an string which is used to
+# determine whether decryption was successful by javascript.
+my $page = "<!-- pwsafe-web page start -->\n";
 # The ResponseForm contains only data from the server to the client.
 $page .= $cgi->start_form(-name=>'ResponseForm',
                             -onSubmit=>'return false');
