@@ -27,7 +27,7 @@ use Pwsafe;
 my $base_uri='/pwsafe';
 my $key_dir='/srv/www/pwsafe/data/';
 my $safe_dir='/srv/www/pwsafe/safes/';
-my $query = new CGI;
+my $cgi = new CGI;
 
 use MIME::Base64;
 my $client_id = 1;
@@ -194,12 +194,12 @@ sub PrintPasswordFileList()
   foreach (@files) {
     if (($_ ne '.') && ($_ ne '..')) {
       my ($filename, $directories, $suffix) = fileparse($_);
-      push(@list, $query->li($query->a({href=>"javascript: OpenFile('$filename')"}, $filename)));
+      push(@list, $cgi->li($cgi->a({href=>"javascript: OpenFile('$filename')"}, $filename)));
     }
   }
 
   if (length(@list > 0)) {
-    $result .= $query->ul(@list);
+    $result .= $cgi->ul(@list);
   }
   return $result;
 }
@@ -207,9 +207,9 @@ sub PrintPasswordFileList()
 $debug .= PrintPasswordFileList();
 
 # Handle the input parameters.
-if ($query->param()) {
-  $encryption_key = OpensslRsaDecrypt($query->param('encryption_key'));
-  $request_key = OpensslAesDecrypt($query->param('request_key'), $encryption_key);
+if ($cgi->param()) {
+  $encryption_key = OpensslRsaDecrypt($cgi->param('encryption_key'));
+  $request_key = OpensslAesDecrypt($cgi->param('request_key'), $encryption_key);
   $debug .= "encryption_key: $encryption_key<br />\n";
   $debug .= "request_key: $request_key<br />\n";
 }
@@ -217,27 +217,27 @@ if ($query->param()) {
 # Generate the page contents and save them to $page.
 my $page = 'test';
 # The ResponseForm contains only data from the server to the client.
-$page .= $query->start_form(-name=>'ResponseForm',
+$page .= $cgi->start_form(-name=>'ResponseForm',
                             -onSubmit=>'return false');
-$page .= $query->textfield(-name=>'modulus',
+$page .= $cgi->textfield(-name=>'modulus',
                         -default=>$modulus);
-$page .= $query->textfield(-name=>'public_exponent',
+$page .= $cgi->textfield(-name=>'public_exponent',
                         -default=>$public_exponent);
-$page .= $query->endform;
+$page .= $cgi->endform;
 
-$page .= $query->start_form(-method=>'POST',
+$page .= $cgi->start_form(-method=>'POST',
                             -name=>'RequestForm',
                             -onSubmit=>'EvRequestFormOnSubmit()');
-$page .= $query->textfield(-name=>'encryption_key',
+$page .= $cgi->textfield(-name=>'encryption_key',
                         -default=>'');
-$page .= $query->textfield(-name=>'request_key',
+$page .= $cgi->textfield(-name=>'request_key',
                         -default=>'');
 
-$page .= $query->button(-name=>'encrypt',
+$page .= $cgi->button(-name=>'encrypt',
                         -value=>'encrypt',
                         -onclick=>'EncryptRequest()');
 
-$page .= $query->endform;
+$page .= $cgi->endform;
 
 #
 #$page .= '<form id="test2">
@@ -271,7 +271,7 @@ $page64 = JavascriptBase64Format($page64);
 # Write the page contents to the client.
 
 # Send a HTTP header.
-print $query->header(-type => 'text/html',
+print $cgi->header(-type => 'text/html',
                      -charset=>'UTF-8',
                      -expires=>'-3d',
                      -'Cache-Control'=>'no-store,no-cache,must-revalidate,private',
@@ -279,7 +279,7 @@ print $query->header(-type => 'text/html',
 
 # Send the HTML header. The page contents are sent encrypted
 # within a script block of the header.
-print $query->start_html(-dtd=>1,
+print $cgi->start_html(-dtd=>1,
                          -title=>'Online Password Safe',
                          -author=>'skrug@gmx.at',
 #                         -head=>[meta({-http_equiv=>'Content-Type', -content=>'text/html'}),
@@ -328,4 +328,4 @@ print '<div id="debug"></div>';
 print $debug;
 # print localtime();
 
-print $query->end_html();
+print $cgi->end_html();
