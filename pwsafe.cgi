@@ -222,23 +222,19 @@ my $page = "<!-- pwsafe-web page start -->\n";
 # The ResponseForm contains only data from the server to the client.
 $page .= $cgi->start_form(-name=>'ResponseForm',
                             -onSubmit=>'return false');
-$page .= $cgi->textfield(-name=>'modulus',
-                        -default=>$modulus);
-$page .= $cgi->textfield(-name=>'public_exponent',
-                        -default=>$public_exponent);
+$page .= $cgi->hidden(-name=>'modulus',
+                      -default=>$modulus);
+$page .= $cgi->hidden(-name=>'public_exponent',
+                      -default=>$public_exponent);
 $page .= $cgi->endform;
 
 $page .= $cgi->start_form(-method=>'POST',
                             -name=>'RequestForm',
                             -onSubmit=>'EvRequestFormOnSubmit()');
-$page .= $cgi->textfield(-name=>'encryption_key',
-                        -default=>'');
-$page .= $cgi->textfield(-name=>'request_key',
-                        -default=>'');
-
-$page .= $cgi->button(-name=>'encrypt',
-                        -value=>'encrypt',
-                        -onclick=>'EncryptRequest()');
+$page .= $cgi->hidden(-name=>'encryption_key',
+                      -default=>'');
+$page .= $cgi->hidden(-name=>'request_key',
+                      -default=>'');
 
 $page .= $cgi->endform;
 
@@ -324,9 +320,9 @@ print $cgi->start_html(-dtd=>1,
 
 # TODO: clear everything on close!
 
+print '<div id="pwsafe-web-content">&nbsp;</div>';
+print '<div id="pwsafe-web-debug">&nbsp;</div>';
 
-print '<div id="pwsafe_gui_content"></div>';
-print '<div id="debug"></div>';
 # print $page;
 print $debug;
 # print localtime();

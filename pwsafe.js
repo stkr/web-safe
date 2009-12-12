@@ -12,7 +12,6 @@ function GetRequestKey()
 function SetRequestKey(request_key)
 {
   top.headline.request_key = request_key;
-  top.headline.document.ResponseForm.request_key.value = request_key;
 }
 
 function GetModulus()
@@ -24,6 +23,34 @@ function GetPublicExponent()
 {
   return document.ResponseForm.public_exponent.value;
 }
+
+function SetContent(page)
+{
+  document.getElementById('pwsafe-web-content').innerHTML = page;
+}
+
+function ResetError()
+{
+  var error_obj = top.headline.document.getElementById('pwsafe-web-error');
+  if (error_obj) {
+    error_obj.innerHTML = '&nbsp;';
+    // TODO: reset style.
+  }
+}
+
+function SetError(error)
+{
+  var error_obj = top.headline.document.getElementById('pwsafe-web-error');
+  if (error_obj) {
+    error_obj.innerHTML = error;
+    // TODO: set style (red, flashing, etc.).
+    window.setTimeout('ResetError()', 3000);
+  }
+  else {
+    alert(error);
+  }
+}
+
 
 /* function ByteArrayToHexStr(&array)
 {
@@ -53,10 +80,6 @@ function ByteArrayToStr(&array)
 function GetDecryptedPage()
 {
   var request_key = GetRequestKey();
-
-  document.getElementById('debug').innerHTML += "js: request_key(base64): " + encodeBase64(request_key) + " <br />\n";
-  document.getElementById('debug').innerHTML += "js: request_key(hex): " + encodeHex(request_key) + " <br />\n";
-
   var page;
   if (request_key.length == 32) {
     page = GibberishAES.dec(page64, request_key);
@@ -68,7 +91,7 @@ function GetDecryptedPage()
   // Look for the known start string to check if
   // decryption was successful.
   if (page.substr(0,30) != '<!-- pwsafe-web page start -->') {
-    alert('error decrypting the page');
+    SetError('GetDecryptedPage: Error decrypting the page.');
     return '';
   }
   return page;
@@ -188,9 +211,8 @@ function EncryptRequest()
 
 function EvPwsafeBodyLoad()
 {
-  // Write the page contents from the base64 encoded encrypted string passed
-  // by the server
-  document.getElementById('pwsafe_gui_content').innerHTML = GetDecryptedPage();
+  // Write the page to the document.
+  SetContent(GetDecryptedPage());
 
   // Seed the random number generator.
   rng_seed_time();
