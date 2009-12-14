@@ -24,6 +24,26 @@ function GetPublicExponent()
   return document.ResponseForm.public_exponent.value;
 }
 
+function GetAction()
+{
+  return document.RequestForm.action.value;
+}
+
+function SetAction(action)
+{
+  document.RequestForm.action.value = action;
+}
+
+function GetFilename()
+{
+  return document.RequestForm.filename.value;
+}
+
+function SetFilename(filename)
+{
+  document.RequestForm.filename.value = filename;
+}
+
 function SetContent(page)
 {
   document.getElementById('pwsafe-web-content').innerHTML = page;
@@ -188,7 +208,7 @@ is then submitted.
 For transmission always the following encapsulation is used:
   transmit(base64encode((ecrypt(msg))))
 */
-function EncryptRequest()
+function EncryptAndSubmit()
 {
   var request_key = GetRequestKey();
   if (request_key.length != 32) {
@@ -203,10 +223,28 @@ function EncryptRequest()
   // so we can encrypt everything now.
   EncryptAndStoreRSA('encryption_key', encryption_key);
   EncryptAndStoreAES('request_key', request_key, encryption_key);
+  var action = GetAction();
+  switch (action) {
+    case 'view_file':
+      EncryptAndStoreAES('filename', GetFilename(), encryption_key);
+      break;
+    case 'view_password':
+      // TODO: to be continued.
+      break;
+    default:
+      break;
+  }
+  EncryptAndStoreAES('action', action, encryption_key);
 
-// TODO: to be continued.
   document.RequestForm.submit();
   return true;
+}
+
+/** Send the request for opening a file. */
+function OpenFile(filename) {
+  SetFilename(filename);
+  SetAction('view_file');
+  EncryptAndSubmit();
 }
 
 function EvPwsafeBodyLoad()

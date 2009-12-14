@@ -43,10 +43,21 @@ my $encryption_key = '';
 # the request.
 my $request_key = '';
 
+# The master passwor used for opening the passwor safe.
+my $master_password = '';
+
+# The action which is about to be performed by the script.
+my $action = '';
+
 # If the page contains sensitive data, this flag should be set to 1.
 # When assembling the page, it is checked and if no request key was set,
 # it is refused to send data.
 my $encryption_needed = 0;
+
+# Contains the contents of the generated html page.
+# The first few characters contain a commonly known string which is
+# used to check whether decryption was successful by javascript.
+my $page = "<!-- pwsafe-web page start -->\n";
 
 # open(OPENSSL, 'openssl genrsa 1024 |') || die "Unable to open openssl: $!\n";
 # while (<OPENSSL>) { $key .= $_; }
@@ -183,7 +194,7 @@ sub OpenPwsafe($$)
 
 
 # Generate a password file list and return the html code.
-sub PrintPasswordFileList()
+sub PasswordFileList()
 {
   my $result;
   my @list;
@@ -204,24 +215,29 @@ sub PrintPasswordFileList()
   return $result;
 }
 
-$debug .= PrintPasswordFileList();
-
 # Handle the input parameters.
 if ($cgi->param()) {
   $encryption_key = OpensslRsaDecrypt($cgi->param('encryption_key'));
   $request_key = OpensslAesDecrypt($cgi->param('request_key'), $encryption_key);
-  $debug .= "encryption_key: $encryption_key<br />\n";
-  $debug .= "request_key: $request_key<br />\n";
+  $master_password = OpensslAesDecrypt($cgi->param('action'), $encryption_key);
+  $action = OpensslAesDecrypt($cgi->param('action'), $encryption_key);
+  if ($action eq 'view_file') {
+  }
+  elsif ($action eq 'view_password') {
+  }
+  else {
+    $page .= PasswordFileList();
+  }
+#  $debug .= "encryption_key: $encryption_key<br />\n";
+#  $debug .= "request_key: $request_key<br />\n";
+}
+else {
+  $page .= PasswordFileList();
 }
 
-
-# Generate the page contents and save them to $page.
-# The first few characters contain an string which is used to
-# determine whether decryption was successful by javascript.
-my $page = "<!-- pwsafe-web page start -->\n";
 # The ResponseForm contains only data from the server to the client.
 $page .= $cgi->start_form(-name=>'ResponseForm',
-                            -onSubmit=>'return false');
+                          -onSubmit=>'return false');
 $page .= $cgi->hidden(-name=>'modulus',
                       -default=>$modulus);
 $page .= $cgi->hidden(-name=>'public_exponent',
@@ -229,13 +245,18 @@ $page .= $cgi->hidden(-name=>'public_exponent',
 $page .= $cgi->endform;
 
 $page .= $cgi->start_form(-method=>'POST',
-                            -name=>'RequestForm',
-                            -onSubmit=>'EvRequestFormOnSubmit()');
+                          -name=>'RequestForm',
+                          -onSubmit=>'EvRequestFormOnSubmit()');
 $page .= $cgi->hidden(-name=>'encryption_key',
                       -default=>'');
 $page .= $cgi->hidden(-name=>'request_key',
                       -default=>'');
-
+$page .= $cgi->hidden(-name=>'master_password',
+                      -default=>'');
+$page .= $cgi->hidden(-name=>'action',
+                      -default=>'');
+$page .= $cgi->hidden(-name=>'filename',
+                      -default=>'');
 $page .= $cgi->endform;
 
 #
