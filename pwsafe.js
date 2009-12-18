@@ -44,6 +44,18 @@ function SetFilename(filename)
   document.RequestForm.filename.value = filename;
 }
 
+
+function GetPassword()
+{
+  return document.RequestForm.password.value;
+}
+
+function SetPassword(password)
+{
+  document.RequestForm.password.value = password;
+}
+
+
 function SetContent(page)
 {
   document.getElementById('pwsafe-web-content').innerHTML = page;
@@ -195,8 +207,7 @@ Depending on the action:
     - filename
   - display password (display details for a specific password entry)
     - filename
-    - groupname
-    - password title (probably better: uuid (?))
+    - password uuid
 
 Available actions (as named in code):
   - view_overview
@@ -229,7 +240,8 @@ function EncryptAndSubmit()
       EncryptAndStoreAES('filename', GetFilename(), encryption_key);
       break;
     case 'view_password':
-      // TODO: to be continued.
+      EncryptAndStoreAES('filename', GetFilename(), encryption_key);
+      EncryptAndStoreAES('password', GetPassword(), encryption_key);
       break;
     default:
       break;
@@ -244,6 +256,14 @@ function EncryptAndSubmit()
 function OpenFile(filename) {
   SetFilename(filename);
   SetAction('view_file');
+  EncryptAndSubmit();
+}
+
+/** Send the request for opening a password. */
+function OpenPassword(filename, password) {
+  SetFilename(filename);
+  SetPassword(password);
+  SetAction('view_password');
   EncryptAndSubmit();
 }
 

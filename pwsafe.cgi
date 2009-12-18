@@ -53,8 +53,11 @@ my $action = '';
 # The filename of the file which is opened. This includes the complete path.
 my $filename = '';
 
-# The title of the password which is displayed.
+# The UUID of the password which is displayed.
 my $password = '';
+
+# A hash reference referencing the password which is displayed in detail.
+my $password_hash = 0;
 
 # If the page contains sensitive data, this flag should be set to 1.
 # When assembling the page, it is checked and if no request key was set,
@@ -344,10 +347,21 @@ sub HtmlGroupFooter
 
 # Create the html code for a password entry in the list.
 # Params:
-#   - title: The displayed title of the password.
+#   - filename: The filename in which the password is stored.
+#   - password: A reference to a hash containing password information.
 sub HtmlPasswordList
 {
-  sprintf('<li>%s</li>', $_[0]);
+  return sprintf '<li><a href="javascript: OpenPassword(\'%s\', \'%s\')">%s</a></li>', $_[0], $_[1]->{'UUID'}, $_[1]->{'title'};
+}
+
+# Create the html code for the details of a single password.
+# Params:
+#   - password: A reference to a hash containing password information.
+sub HtmlPasswordDetails
+{
+  my $password = $_[0];
+  my $result = "<h3>$password->{'title'}</h3>";
+  return $result;
 }
 
 # Change the current group in the html sourcecode.
@@ -392,6 +406,7 @@ sub HtmlChangeGroup
 sub PasswordList($$)
 {
   my ($filename, $key) = @_;
+  my ($name, $directories, $suffix) = fileparse($filename);
   $key = 'test'; # <-- TODO: this must be removed!
   my $result;
   my $pwsafe = Crypt::Pwsafe->new($filename, $key);
@@ -401,7 +416,7 @@ sub PasswordList($$)
   # Sort the passwords by groupname:
   @passwords = sort GroupSort @passwords;
   # Create a group from the filename which contains top-level passwords.
-  $result .= HtmlGroupHeader('root', $filename);
+  $result .= HtmlGroupHeader('root', $name);
   # Print the group and password hierarchy.
   my $last_group = '';
   foreach (@passwords) {
@@ -409,7 +424,10 @@ sub PasswordList($$)
       $result .= HtmlChangeGroup($last_group, $_->{'group'});
       $last_group = $_->{'group'};
     }
-    $result .= HtmlPasswordList($_->{'title'});
+    # If the password we want to open is encountered, we save it in
+    # the global $password_hash reference.
+    if ($_->{'UUID'} eq $password) { $password_hash = $_; }
+    $result .= HtmlPasswordList($name, $_);
   }
   # Close all groups.
   $result .= HtmlChangeGroup($last_group, '');
@@ -430,11 +448,14 @@ if ($cgi->param()) {
 #    $page .= '<ul>'.PasswordList($filename, $master_password).'</ul>';
   }
   elsif ($action eq 'view_password') {
+    $filename = $safe_dir . OpensslAesDecrypt($cgi->param('filename'), $encryption_key);
+    $password = OpensslAesDecrypt($cgi->param('password'), $encryption_key);
   }
   else {
     $master_password = '';
     $action = '';
     $filename = '';
+    $password = '';
   }
 #  $debug .= "encryption_key: $encryption_key<br />\n";
 #  $debug .= "request_key: $request_key<br />\n";
@@ -442,6 +463,8 @@ if ($cgi->param()) {
 
 # Generate the page contents based on the action and parameters.
 $page .= PasswordFileList();
+# If there is a password hash reference, we display its details.
+if (ref $password_hash) { $page .= HtmlPasswordDetails($password_hash); }
 
 # The ResponseForm contains only data from the server to the client.
 $page .= $cgi->start_form(-name=>'ResponseForm',
@@ -464,6 +487,8 @@ $page .= $cgi->hidden(-name=>'master_password',
 $page .= $cgi->hidden(-name=>'action',
                       -default=>'');
 $page .= $cgi->hidden(-name=>'filename',
+                      -default=>'');
+$page .= $cgi->hidden(-name=>'password',
                       -default=>'');
 $page .= $cgi->endform;
 
