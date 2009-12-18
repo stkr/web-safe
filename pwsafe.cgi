@@ -311,10 +311,15 @@ sub HtmlChangeGroup
   my $last_group = $_[0];
   my @last_group = split(/\./, $last_group);
   my @new_group = split(/\./, $_[1]);
+  my $common_group = '';
   my $result = '';
   my $i = 0;
   while ( (defined @last_group[$i]) && (defined @new_group[$i]) &&
-          (@last_group[$i] eq @new_group[$i])) { $i++; }
+          (@last_group[$i] eq @new_group[$i])) {
+    if ($common_group ne '') { $common_group .= '.'; }
+    $common_group .= @new_group[$i];
+    $i++;
+  }
   # So $i now is the index of the first distinct group entry.
   # Close every deeper level of the old group.
   my $close_levels = scalar(@last_group) - $i;
@@ -324,7 +329,7 @@ sub HtmlChangeGroup
   }
   # And open a div for every deeper new group level.
   my $open_level = $i;
-  my $group_id = $last_group;
+  my $group_id = $common_group;
   while ($open_level < scalar(@new_group)) {
     if ($group_id ne '') { $group_id .= '.'; }
     $group_id .= @new_group[$open_level];
