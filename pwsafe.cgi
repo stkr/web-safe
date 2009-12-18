@@ -185,6 +185,33 @@ sub OpensslAesDecrypt($$)
   OpensslAesCall(OpensslBase64Format($_[0]), $_[1], 'd');
 }
 
+
+# Split a group name at '.'.
+# To allow a dot in the group name, it is escaped by '\.'.
+# So an occurence of '\.' must not split the name!
+# Params:
+#   - group_name: The full name of the group.
+sub SplitGroupname
+{
+  my @parts = split /\./, $_[0];
+  my @result = ();
+  my $keep = '';
+  for (my $n = 0; $n < (scalar @parts); $n++) {
+    if ($parts[$n] =~ /\\$/) {
+      $keep .= substr($parts[$n], 0, -1) . '.';
+      if (($n + 1) == (scalar @parts)) {
+        push @result, $keep.$parts[$n + 1];
+      }
+    }
+    else {
+      push @result, $keep.$parts[$n];
+      $keep = '';
+    }
+  }
+  return @result;
+}
+
+
 sub OpenPwsafe($$)
 {
   my $file = shift;
@@ -219,8 +246,8 @@ sub PasswordFileList()
 sub GroupSort
 {
 	# lc($a->{'group'}) cmp lc($b->{'group'});
-	my @a = split /\./, $a->{'group'};
-	my @b = split /\./, $b->{'group'};
+	my @a = SplitGroupname($a->{'group'});
+	my @b = SplitGroupname($b->{'group'});
 
 	# Some corner cases:
 	# A has no elements and b has no elements -> Same group, compare title.
@@ -309,8 +336,8 @@ sub HtmlPasswordList
 sub HtmlChangeGroup
 {
   my $last_group = $_[0];
-  my @last_group = split(/\./, $last_group);
-  my @new_group = split(/\./, $_[1]);
+  my @last_group = SplitGroupname($last_group);
+  my @new_group = SplitGroupname($_[1]);
   my $common_group = '';
   my $result = '';
   my $i = 0;
