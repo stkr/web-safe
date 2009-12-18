@@ -247,6 +247,27 @@ function OpenFile(filename) {
   EncryptAndSubmit();
 }
 
+/** UI: Display a password group with all its entries. */
+function ShowGroup(id)
+{
+  var obj = document.getElementById(id);
+  obj.style.visibility = 'inherit';
+  obj.style.height = 'auto';
+  var link = document.getElementById(id+'_link');
+  link.href = "javascript:HideGroup('" + id + "')";
+}
+
+/** UI: Hide a password group with all its entries. */
+function HideGroup(id)
+{
+  var obj = document.getElementById(id);
+  obj.style.visibility = 'hidden';
+  obj.style.height = 0;
+  var link = document.getElementById(id + '_link');
+  link.href = "javascript:ShowGroup('" + id + "')";
+}
+
+
 function EvPwsafeBodyLoad()
 {
   // Write the page to the document.
