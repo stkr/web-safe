@@ -273,6 +273,32 @@ sub RecursiveList
   }
 }
 
+# Create the html code for a group header.
+# Params:
+#   - group_id: A string used as id for the group. Must be unique within
+#     the html document. A suggestrion is the group name including all
+#     supergroups (so it is unique).
+#   - group_name: A string displayed as group name in the UI.
+sub HtmlGroupHeader
+{
+  my ($group_id, $group_name) = @_;
+  return sprintf('<li><a id="%s_link" href="javascript:HideGroup(\'%s\')">%s</a><ul id="%s">', $group_id, $group_id, $group_name, $group_id);
+}
+
+# Create the html code for the end of a group. Must match the code
+# of HtmlGroupHeader.
+sub HtmlGroupFooter
+{
+  return '</ul></li>';
+}
+
+# Create the html code for a password entry in the list.
+# Params:
+#   - title: The displayed title of the password.
+sub HtmlPasswordList
+{
+  sprintf('<li>%s</li>', $_[0]);
+}
 
 # Change the current group in the html sourcecode.
 # This closes the opened containers for subgroups and
@@ -293,16 +319,16 @@ sub HtmlChangeGroup
   # Close every deeper level of the old group.
   my $close_levels = scalar(@last_group) - $i;
   while ($close_levels > 0) {
-    $result .= '</ul></li>';
+    $result .= HtmlGroupFooter();
     $close_levels--;
   }
   # And open a div for every deeper new group level.
   my $open_level = $i;
-  my $div_name = $last_group;
+  my $group_id = $last_group;
   while ($open_level < scalar(@new_group)) {
-    if ($div_name ne '') { $div_name .= '.'; }
-    $div_name .= @new_group[$open_level];
-    $result .= sprintf('<li><a id="%s_link" href="javascript:HideGroup(\'%s\')">%s</a><ul id="%s">', $div_name, $div_name, @new_group[$open_level], $div_name);
+    if ($group_id ne '') { $group_id .= '.'; }
+    $group_id .= @new_group[$open_level];
+    $result .= HtmlGroupHeader($group_id, @new_group[$open_level]);
     $open_level++;
   }
   return $result;
@@ -311,7 +337,7 @@ sub HtmlChangeGroup
 sub PasswordList($$)
 {
   my ($filename, $key) = @_;
-  $key = 'test';
+  $key = 'test'; # <-- TODO: this must be removed!
   my $result;
   my $pwsafe = Crypt::Pwsafe->new($filename, $key);
   my @passwords = ();
@@ -319,19 +345,21 @@ sub PasswordList($$)
   # So at this point we have an array containing all passwords.
   # Sort the passwords by groupname:
   @passwords = sort GroupSort @passwords;
-  # Print them
-  $result .= sprintf('<li><a id="%s_link" href="javascript:HideGroup(\'%s\')">%s</a><ul id="%s">', 'root', 'root', $filename, 'root');
+  # Create a group from the filename which contains top-level passwords.
+  $result .= HtmlGroupHeader('root', $filename);
+  # Print the group and password hierarchy.
   my $last_group = '';
   foreach (@passwords) {
     if ($_->{'group'} ne $last_group) {
       $result .= HtmlChangeGroup($last_group, $_->{'group'});
       $last_group = $_->{'group'};
     }
-    $result .= sprintf('<li>%s</li>', $_->{'title'});
+    $result .= HtmlPasswordList($_->{'title'});
   }
   # Close all groups.
   $result .= HtmlChangeGroup($last_group, '');
-  $result .= '</ul></li>';
+  # Close the group used for the file.
+  $result .= HtmlGroupFooter();
   return $result;
 }
 
