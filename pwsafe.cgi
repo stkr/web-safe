@@ -21,7 +21,8 @@ use File::Basename;
 #
 # Modifications to the Pwsafe module:
 #   - Removed keyboard handling code. This is a webservice and uses no
-#     keyboard at all
+#     keyboard at all.
+#   - Return the title and user fields within the password hash.
 use Pwsafe;
 
 my $base_uri='/pwsafe';
@@ -284,8 +285,7 @@ sub HtmlChangeGroup
   my $last_group = $_[0];
   my @last_group = split(/\./, $last_group);
   my @new_group = split(/\./, $_[1]);
-#      my @last_group_parts = split(/\./, $lastgroup);
-#      my @subgroup_parts = split(/\./, $_->{'group'});
+  my $result = '';
   my $i = 0;
   while ( (defined @last_group[$i]) && (defined @new_group[$i]) &&
           (@last_group[$i] eq @new_group[$i])) { $i++; }
@@ -293,7 +293,7 @@ sub HtmlChangeGroup
   # Close every deeper level of the old group.
   my $close_levels = scalar(@last_group) - $i;
   while ($close_levels > 0) {
-    $debug .= "</div>";
+    $result .= '</ul></li>';
     $close_levels--;
   }
   # And open a div for every deeper new group level.
@@ -302,9 +302,10 @@ sub HtmlChangeGroup
   while ($open_level < scalar(@new_group)) {
     if ($div_name ne '') { $div_name .= '.'; }
     $div_name .= @new_group[$open_level];
+    $result .= sprintf('<li><a id="%s_link" href="javascript:HideGroup(\'%s\')">%s</a><ul id="%s">', $div_name, $div_name, @new_group[$open_level], $div_name);
     $open_level++;
-    $debug .= '<div class="hidden group_'.$open_level.'" id="'.$div_name.'">';
   }
+  return $result;
 }
 
 sub PasswordList($$)
@@ -313,33 +314,25 @@ sub PasswordList($$)
   $key = 'test';
   my $result;
   my $pwsafe = Crypt::Pwsafe->new($filename, $key);
-  my $prefix = '';
-#  while (my ($key, $value) = each %$pwsafe) {
-#    $debug .= "prefix: $prefix, key: $key, value: $value\n";
-#  }
   my @passwords = ();
   RecursiveList(\%{$pwsafe}, \@passwords);
   # So at this point we have an array containing all passwords.
   # Sort the passwords by groupname:
   @passwords = sort GroupSort @passwords;
-#  $debug .= Dumper(@passwords);
   # Print them
+  $result .= sprintf('<li><a id="%s_link" href="javascript:HideGroup(\'%s\')">%s</a><ul id="%s">', 'root', 'root', $filename, 'root');
   my $last_group = '';
   foreach (@passwords) {
     if ($_->{'group'} ne $last_group) {
-      HtmlChangeGroup($last_group, $_->{'group'});
+      $result .= HtmlChangeGroup($last_group, $_->{'group'});
       $last_group = $_->{'group'};
     }
-    $debug .= $_->{'group'} . ': ' . $_->{'title'} ."<br />\n";
+    $result .= sprintf('<li>%s</li>', $_->{'title'});
   }
   # Close all groups.
-  HtmlChangeGroup($last_group, '');
-
-#    else {
-#      $debug .= "item: prefix: $prefix, key: $key, value: $value<br />\n";
-#    }
-#  }
-#  return $contains_hash;}
+  $result .= HtmlChangeGroup($last_group, '');
+  $result .= '</ul></li>';
+  return $result;
 }
 
 # Handle the input parameters.
@@ -350,7 +343,7 @@ if ($cgi->param()) {
   $action = OpensslAesDecrypt($cgi->param('action'), $encryption_key);
   if ($action eq 'view_file') {
     my $filename = $safe_dir . OpensslAesDecrypt($cgi->param('filename'), $encryption_key);
-    PasswordList($filename, $master_password);
+    $page .= '<ul>'.PasswordList($filename, $master_password).'</ul>';
   }
   elsif ($action eq 'view_password') {
   }
