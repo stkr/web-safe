@@ -50,6 +50,12 @@ my $master_password = '';
 # The action which is about to be performed by the script.
 my $action = '';
 
+# The filename of the file which is opened. This includes the complete path.
+my $filename = '';
+
+# The title of the password which is displayed.
+my $password = '';
+
 # If the page contains sensitive data, this flag should be set to 1.
 # When assembling the page, it is checked and if no request key was set,
 # it is refused to send data.
@@ -224,22 +230,24 @@ sub OpenPwsafe($$)
 # Generate a password file list and return the html code.
 sub PasswordFileList()
 {
-  my $result;
-  my @list;
-
+  my $result = HtmlFilelistHeader();
   opendir(DIR, $safe_dir);
   my @files = readdir(DIR);
   closedir(DIR);
   foreach (@files) {
     if (($_ ne '.') && ($_ ne '..')) {
-      my ($filename, $directories, $suffix) = fileparse($_);
-      push(@list, $cgi->li($cgi->a({href=>"javascript: OpenFile('$filename')"}, $filename)));
+      my ($name, $directories, $suffix) = fileparse($_);
+      # If the current filename is equal to the filename of the open file,
+      if ($safe_dir.$_ eq $filename) {
+        # then print a list of passwords.
+        $result .= PasswordList($safe_dir.$_, $master_password);
+      }
+      else {
+        $result .= HtmlPasswordFile($name);
+      }
     }
   }
-
-  if (length(@list > 0)) {
-    $result .= $cgi->ul(@list);
-  }
+  $result .= HtmlFilelistFooter();
   return $result;
 }
 
@@ -274,7 +282,7 @@ sub GroupSort
 	}
 }
 
-## Traverse the pwsafe object and extract all pass passwod objects.
+## Traverse the pwsafe object and extract all password objects.
 # Params:
 #   - A hash reference to a node in the pwsafe tree.
 #   - A array reference which the password hashes are copied to.
@@ -298,6 +306,21 @@ sub RecursiveList
       }
     }
   }
+}
+
+sub HtmlFilelistHeader
+{
+  return '<ul>';
+}
+
+sub HtmlFilelistFooter
+{
+  return '</ul>';
+}
+
+sub HtmlPasswordFile
+{
+  return sprintf '<li><a href="javascript: OpenFile(\'%s\')">%s</a></li>', $_[0], $_[0];
 }
 
 # Create the html code for a group header.
@@ -396,26 +419,29 @@ sub PasswordList($$)
 }
 
 # Handle the input parameters.
+# TODO: this is user input and has to be checked for sane values!!!
 if ($cgi->param()) {
   $encryption_key = OpensslRsaDecrypt($cgi->param('encryption_key'));
   $request_key = OpensslAesDecrypt($cgi->param('request_key'), $encryption_key);
   $master_password = OpensslAesDecrypt($cgi->param('action'), $encryption_key);
   $action = OpensslAesDecrypt($cgi->param('action'), $encryption_key);
   if ($action eq 'view_file') {
-    my $filename = $safe_dir . OpensslAesDecrypt($cgi->param('filename'), $encryption_key);
-    $page .= '<ul>'.PasswordList($filename, $master_password).'</ul>';
+    $filename = $safe_dir . OpensslAesDecrypt($cgi->param('filename'), $encryption_key);
+#    $page .= '<ul>'.PasswordList($filename, $master_password).'</ul>';
   }
   elsif ($action eq 'view_password') {
   }
   else {
-    $page .= PasswordFileList();
+    $master_password = '';
+    $action = '';
+    $filename = '';
   }
 #  $debug .= "encryption_key: $encryption_key<br />\n";
 #  $debug .= "request_key: $request_key<br />\n";
 }
-else {
-  $page .= PasswordFileList();
-}
+
+# Generate the page contents based on the action and parameters.
+$page .= PasswordFileList();
 
 # The ResponseForm contains only data from the server to the client.
 $page .= $cgi->start_form(-name=>'ResponseForm',
