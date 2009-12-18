@@ -189,12 +189,15 @@ sub _cbc_twofish {
 			print "\tUUID=$entry->{UUID}\n" if $DEBUG;
 		} elsif ($type == 2) {    # Group
 			$group = pack("U0C*", unpack("C*", $buf));
+			$entry->{group} = $group;
 			print "Group=$group\n" if $DEBUG;
 		} elsif ($type == 3) {    # Title
 			$title = pack("U0C*", unpack("C*", $buf));
+			$entry->{title} = $title;
 			print "  Title=$title\n" if $DEBUG;
 		} elsif ($type == 4) {    # Username
 			$user  = pack("U0C*", unpack("C*", $buf));
+			$entry->{user} = $user;
 			print "    User=$user\n" if $DEBUG;
 		} elsif ($type == 0xff) { # End of Entry
 			if (defined($title) and defined($user)) {
