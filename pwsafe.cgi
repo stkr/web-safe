@@ -215,6 +215,133 @@ sub PasswordFileList()
   return $result;
 }
 
+sub GroupSort
+{
+	# lc($a->{'group'}) cmp lc($b->{'group'});
+	my @a = split /\./, $a->{'group'};
+	my @b = split /\./, $b->{'group'};
+
+	# Some corner cases:
+	# A has no elements and b has no elements -> Same group, compare title.
+	if (((scalar @a) == 0) and ((scalar @b) == 0)) { return $a->{'title'} cmp $b->{'title'}; }
+	# A has no elements.
+	elsif ((scalar @a) == 0) { return 1; }
+	# B has no elements.
+	elsif ((scalar @b) == 0) { return -1;	}
+
+	my $n = 0;
+	while(1) {
+		if ($a[$n] eq $b[$n]) {
+			$n++;
+			# Both are the same group.
+			if (($n == scalar @a) and ($n == scalar @b)) { return 0; }
+			# A is finnished, but not b. So b is a subgroup of a.
+			elsif ($n == scalar @a) { return 1; }
+			# B is finnished, but not a. So a is a subgroup of b.
+			elsif ($n == scalar @b) { return -1; }
+			# None of them is finished. Continue with the next element.
+		}
+		else { return $a[$n] cmp $b[$n]
+		}
+	}
+}
+
+## Traverse the pwsafe object and extract all pass passwod objects.
+# Params:
+#   - A hash reference to a node in the pwsafe tree.
+#   - A array reference which the password hashes are copied to.
+sub RecursiveList
+{
+  while (my ($key, $value) = each %{$_[0]}) {
+    # Only if we have a hash, we need to check it.
+    # It it is not, it is already an attribute of a password.
+    if (ref($value) eq 'HASH') {
+      # If the has contains a 'UUID' key, it is a password. Otherwise, it is a group.
+      if (defined $value->{'UUID'}) {
+        # If the password has a title, add it to the list.
+        if ($value ->{'title'} ne '') {
+          # Ensure that every password hash has a group entry.
+          if (! defined $value->{'group'}) { $value->{'group'} = '' }
+          push(@{$_[1]}, $value);
+        }
+      }
+      else {
+        RecursiveList($value, $_[1]);
+      }
+    }
+  }
+}
+
+
+# Change the current group in the html sourcecode.
+# This closes the opened containers for subgroups and
+# opens required containers for the new group.
+# Params:
+#   - old_group: A string naming the old group.
+#   - new_group: A string naming the new group.
+sub HtmlChangeGroup
+{
+  my $last_group = $_[0];
+  my @last_group = split(/\./, $last_group);
+  my @new_group = split(/\./, $_[1]);
+#      my @last_group_parts = split(/\./, $lastgroup);
+#      my @subgroup_parts = split(/\./, $_->{'group'});
+  my $i = 0;
+  while ( (defined @last_group[$i]) && (defined @new_group[$i]) &&
+          (@last_group[$i] eq @new_group[$i])) { $i++; }
+  # So $i now is the index of the first distinct group entry.
+  # Close every deeper level of the old group.
+  my $close_levels = scalar(@last_group) - $i;
+  while ($close_levels > 0) {
+    $debug .= "</div>";
+    $close_levels--;
+  }
+  # And open a div for every deeper new group level.
+  my $open_level = $i;
+  my $div_name = $last_group;
+  while ($open_level < scalar(@new_group)) {
+    if ($div_name ne '') { $div_name .= '.'; }
+    $div_name .= @new_group[$open_level];
+    $open_level++;
+    $debug .= '<div class="hidden group_'.$open_level.'" id="'.$div_name.'">';
+  }
+}
+
+sub PasswordList($$)
+{
+  my ($filename, $key) = @_;
+  $key = 'test';
+  my $result;
+  my $pwsafe = Crypt::Pwsafe->new($filename, $key);
+  my $prefix = '';
+#  while (my ($key, $value) = each %$pwsafe) {
+#    $debug .= "prefix: $prefix, key: $key, value: $value\n";
+#  }
+  my @passwords = ();
+  RecursiveList(\%{$pwsafe}, \@passwords);
+  # So at this point we have an array containing all passwords.
+  # Sort the passwords by groupname:
+  @passwords = sort GroupSort @passwords;
+#  $debug .= Dumper(@passwords);
+  # Print them
+  my $last_group = '';
+  foreach (@passwords) {
+    if ($_->{'group'} ne $last_group) {
+      HtmlChangeGroup($last_group, $_->{'group'});
+      $last_group = $_->{'group'};
+    }
+    $debug .= $_->{'group'} . ': ' . $_->{'title'} ."<br />\n";
+  }
+  # Close all groups.
+  HtmlChangeGroup($last_group, '');
+
+#    else {
+#      $debug .= "item: prefix: $prefix, key: $key, value: $value<br />\n";
+#    }
+#  }
+#  return $contains_hash;}
+}
+
 # Handle the input parameters.
 if ($cgi->param()) {
   $encryption_key = OpensslRsaDecrypt($cgi->param('encryption_key'));
@@ -222,6 +349,8 @@ if ($cgi->param()) {
   $master_password = OpensslAesDecrypt($cgi->param('action'), $encryption_key);
   $action = OpensslAesDecrypt($cgi->param('action'), $encryption_key);
   if ($action eq 'view_file') {
+    my $filename = $safe_dir . OpensslAesDecrypt($cgi->param('filename'), $encryption_key);
+    PasswordList($filename, $master_password);
   }
   elsif ($action eq 'view_password') {
   }
@@ -334,7 +463,7 @@ print $cgi->start_html(-dtd=>1,
                            ],
 #                         -meta=>{'keywords'=>'password safe encryption',
 #                                 'copyright'=>'copyright 2009 Stefan Krug'},
-                         -style=>{'src'=>$base_uri . 'pwsafe.css'},
+                         -style=>{'src'=>$base_uri . '/pwsafe.css'},
                          -lang=>'',
                          -onload=>'EvPwsafeBodyLoad()',
                          -onkeypress=>'EvPwsafeBodyKeyPress()');
