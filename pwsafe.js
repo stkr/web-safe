@@ -256,9 +256,14 @@ function EncryptAndSubmit()
 
 /** Send the request for opening a file. */
 function OpenFile(filename) {
-  SetFilename(filename);
-  SetAction('view_file');
-  EncryptAndSubmit();
+  if (GetMasterPassword() == '') {
+    SetError('OpenFile: No master password was entered.');
+  }
+  else {
+    SetFilename(filename);
+    SetAction('view_file');
+    EncryptAndSubmit();
+  }
 }
 
 /** Send the request for opening a password. */
