@@ -237,9 +237,11 @@ function EncryptAndSubmit()
   var action = GetAction();
   switch (action) {
     case 'view_file':
+      EncryptAndStoreAES('master_password', GetMasterPassword(), encryption_key);
       EncryptAndStoreAES('filename', GetFilename(), encryption_key);
       break;
     case 'view_password':
+      EncryptAndStoreAES('master_password', GetMasterPassword(), encryption_key);
       EncryptAndStoreAES('filename', GetFilename(), encryption_key);
       EncryptAndStoreAES('password', GetPassword(), encryption_key);
       break;

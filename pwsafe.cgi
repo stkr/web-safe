@@ -438,7 +438,6 @@ sub PasswordList($$)
 {
   my ($filename, $key) = @_;
   my ($name, $directories, $suffix) = fileparse($filename);
-  $key = 'test'; # <-- TODO: this must be removed!
   my $result;
   my $pwsafe = Crypt::Pwsafe->new($filename, $key);
   my @passwords = ();
@@ -472,13 +471,14 @@ sub PasswordList($$)
 if ($cgi->param()) {
   $encryption_key = OpensslRsaDecrypt($cgi->param('encryption_key'));
   $request_key = OpensslAesDecrypt($cgi->param('request_key'), $encryption_key);
-  $master_password = OpensslAesDecrypt($cgi->param('action'), $encryption_key);
   $action = OpensslAesDecrypt($cgi->param('action'), $encryption_key);
   if ($action eq 'view_file') {
+    $master_password = OpensslAesDecrypt($cgi->param('master_password'), $encryption_key);
     $filename = $safe_dir . OpensslAesDecrypt($cgi->param('filename'), $encryption_key);
 #    $page .= '<ul>'.PasswordList($filename, $master_password).'</ul>';
   }
   elsif ($action eq 'view_password') {
+    $master_password = OpensslAesDecrypt($cgi->param('master_password'), $encryption_key);
     $filename = $safe_dir . OpensslAesDecrypt($cgi->param('filename'), $encryption_key);
     $password = OpensslAesDecrypt($cgi->param('password'), $encryption_key);
   }
