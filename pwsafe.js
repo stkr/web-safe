@@ -287,6 +287,24 @@ function HideGroup(id)
   link.href = "javascript:ShowGroup('" + id + "')";
 }
 
+/** Display the password in plaintext on the screen. */
+function ShowPassword()
+{
+  var password = document.getElementById('hidden_password_field').value;
+  document.getElementById('plaintext_password_field').innerHTML = password;
+  var link = document.getElementById('toggle_password_visibility_link');
+  link.href = "javascript:HidePassword()";
+  link.innerHTML = 'hide';
+}
+
+/** Do not display the password in plaintext on the screen. */
+function HidePassword()
+{
+  document.getElementById('plaintext_password_field').innerHTML = '[hidden]';
+  var link = document.getElementById('toggle_password_visibility_link');
+  link.href = "javascript:ShowPassword()";
+  link.innerHTML = 'show';
+}
 
 function EvPwsafeBodyLoad()
 {

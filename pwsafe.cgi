@@ -378,7 +378,13 @@ sub HtmlPasswordDetails
   # They depend on the Pwsafe module, so a modification of the Pwsafe module
   # would also be required to change them.
   if ($password->{'user'}) { $result .= "<tr><td>User:</td><td>$password->{'user'}</td></tr>"; }
-  if ($password->{'Password'}) { $result .= "<tr><td>Password:</td><td>$password->{'Password'}</td></tr>"; }
+  if ($password->{'Password'}) {
+    $result .= '<tr><td>Password:</td><td>';
+    $result .= '<input type="hidden" id="hidden_password_field" value="'.$password->{'Password'}.'">
+               <span id="plaintext_password_field">[hidden]</span>
+               <a id="toggle_password_visibility_link" href="javascript:ShowPassword()">show</a>';
+    $result .= '</td></tr>';
+    }
   if ($password->{'URL'}) { $result .= "<tr><td>URL:</td><td>$password->{'URL'}</td></tr>"; }
   if ($password->{'Notes'}) { $result .= "<tr><td>Notes:</td><td>$password->{'Notes'}</td></tr>"; }
   if ($password->{'ATime'}) { $result .= "<tr><td>Created:</td><td>".HtmlFormatTime($password->{'ATime'})."</td></tr>"; }
