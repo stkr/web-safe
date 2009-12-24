@@ -323,7 +323,7 @@ sub HtmlFilelistFooter
 
 sub HtmlPasswordFile
 {
-  return sprintf '<li><a href="javascript: OpenFile(\'%s\')">%s</a></li>', $_[0], $_[0];
+  return sprintf '<li><a href="javascript:OpenFile(\'%s\')">%s</a></li>', $_[0], $_[0];
 }
 
 # Create the html code for a group header.
@@ -351,7 +351,7 @@ sub HtmlGroupFooter
 #   - password: A reference to a hash containing password information.
 sub HtmlPasswordList
 {
-  return sprintf '<li><a href="javascript: OpenPassword(\'%s\', \'%s\')">%s</a></li>', $_[0], $_[1]->{'UUID'}, $_[1]->{'title'};
+  return sprintf '<li><a href="javascript:OpenPassword(\'%s\',\'%s\')">%s</a></li>', $_[0], $_[1]->{'UUID'}, $_[1]->{'title'};
 }
 
 # Return a formatted version of a timestamp.
@@ -373,14 +373,14 @@ sub HtmlPasswordDetails
 {
   my $password = $_[0];
   my $result = "<h3>$password->{'title'}</h3>";
-  $result .= "<table>";
+  $result .= '<table summary="Password details.">';
   # TODO: I don't like the names for the hash keys used here.
   # They depend on the Pwsafe module, so a modification of the Pwsafe module
   # would also be required to change them.
   if ($password->{'user'}) { $result .= "<tr><td>User:</td><td>$password->{'user'}</td></tr>"; }
   if ($password->{'Password'}) {
     $result .= '<tr><td>Password:</td><td>';
-    $result .= '<input type="hidden" id="hidden_password_field" value="'.$password->{'Password'}.'">
+    $result .= '<input type="hidden" id="hidden_password_field" value="'.$password->{'Password'}.'" />
                <span id="plaintext_password_field">[hidden]</span>
                <a id="toggle_password_visibility_link" href="javascript:ShowPassword()">show</a>';
     $result .= '</td></tr>';
@@ -498,29 +498,29 @@ $page .= '<div id="pwsafe-web-list">'.PasswordFileList().'</div>';
 if (ref $password_hash) { $page .= '<div id="pwsafe-web-details">'.HtmlPasswordDetails($password_hash).'</div>'; }
 
 # The ResponseForm contains only data from the server to the client.
-$page .= $cgi->start_form(-name=>'ResponseForm',
+$page .= $cgi->start_form(-id=>'ResponseForm',
                           -onSubmit=>'return false');
-$page .= $cgi->hidden(-name=>'modulus',
-                      -default=>$modulus);
-$page .= $cgi->hidden(-name=>'public_exponent',
-                      -default=>$public_exponent);
+$page .= $cgi->div($cgi->hidden(-name=>'modulus',
+                      -default=>$modulus));
+$page .= $cgi->div($cgi->hidden(-name=>'public_exponent',
+                      -default=>$public_exponent));
 $page .= $cgi->endform;
 
 $page .= $cgi->start_form(-method=>'POST',
-                          -name=>'RequestForm',
+                          -id=>'RequestForm',
                           -onSubmit=>'EvRequestFormOnSubmit()');
-$page .= $cgi->hidden(-name=>'encryption_key',
-                      -default=>'');
-$page .= $cgi->hidden(-name=>'request_key',
-                      -default=>'');
-$page .= $cgi->hidden(-name=>'master_password',
-                      -default=>'');
-$page .= $cgi->hidden(-name=>'action',
-                      -default=>'');
-$page .= $cgi->hidden(-name=>'filename',
-                      -default=>'');
-$page .= $cgi->hidden(-name=>'password',
-                      -default=>'');
+$page .= $cgi->div($cgi->hidden(-name=>'encryption_key',
+                      -default=>''));;
+$page .= $cgi->div($cgi->hidden(-name=>'request_key',
+                      -default=>''));
+$page .= $cgi->div($cgi->hidden(-name=>'master_password',
+                      -default=>''));;
+$page .= $cgi->div($cgi->hidden(-name=>'action',
+                      -default=>''));
+$page .= $cgi->div($cgi->hidden(-name=>'filename',
+                      -default=>''));
+$page .= $cgi->div($cgi->hidden(-name=>'password',
+                      -default=>''));
 $page .= $cgi->endform;
 
 #
@@ -551,7 +551,6 @@ else {
 $page64 = JavascriptBase64Format($page64);
 
 
-
 # Write the page contents to the client.
 
 # Send a HTTP header.
@@ -563,7 +562,9 @@ print $cgi->header(-type => 'text/html',
 
 # Send the HTML header. The page contents are sent encrypted
 # within a script block of the header.
-print $cgi->start_html(-dtd=>1,
+$cgi->default_dtd('-//W3C//DTD XHTML 1.0 Strict//EN',
+            'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd');
+print $cgi->start_html(  -dtd=>1,
                          -title=>'Online Password Safe',
                          -author=>'skrug@gmx.at',
 #                         -head=>[meta({-http_equiv=>'Content-Type', -content=>'text/html'}),

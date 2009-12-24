@@ -1,58 +1,58 @@
 
 function GetMasterPassword()
 {
-  return top.headline.master_password;
+  return top.frame_headline.master_password;
 }
 
 function GetRequestKey()
 {
-  return top.headline.request_key;
+  return top.frame_headline.request_key;
 }
 
 function SetRequestKey(request_key)
 {
-  top.headline.request_key = request_key;
+  top.frame_headline.request_key = request_key;
 }
 
 function GetModulus()
 {
-  return document.ResponseForm.modulus.value;
+  return document.forms['ResponseForm'].modulus.value;
 }
 
 function GetPublicExponent()
 {
-  return document.ResponseForm.public_exponent.value;
+  return document.forms['ResponseForm'].public_exponent.value;
 }
 
 function GetAction()
 {
-  return document.RequestForm.action.value;
+  return document.forms['RequestForm'].action.value;
 }
 
 function SetAction(action)
 {
-  document.RequestForm.action.value = action;
+  document.forms['RequestForm'].action.value = action;
 }
 
 function GetFilename()
 {
-  return document.RequestForm.filename.value;
+  return document.forms['RequestForm'].filename.value;
 }
 
 function SetFilename(filename)
 {
-  document.RequestForm.filename.value = filename;
+  document.forms['RequestForm'].filename.value = filename;
 }
 
 
 function GetPassword()
 {
-  return document.RequestForm.password.value;
+  return document.forms['RequestForm'].password.value;
 }
 
 function SetPassword(password)
 {
-  document.RequestForm.password.value = password;
+  document.forms['RequestForm'].password.value = password;
 }
 
 
@@ -63,7 +63,7 @@ function SetContent(page)
 
 function ResetError()
 {
-  var error_obj = top.headline.document.getElementById('pwsafe-web-error');
+  var error_obj = top.frame_headline.document.getElementById('pwsafe-web-error');
   if (error_obj) {
     error_obj.innerHTML = '&nbsp;';
     // TODO: reset style.
@@ -72,7 +72,7 @@ function ResetError()
 
 function SetError(error)
 {
-  var error_obj = top.headline.document.getElementById('pwsafe-web-error');
+  var error_obj = top.frame_headline.document.getElementById('pwsafe-web-error');
   if (error_obj) {
     error_obj.innerHTML = error;
     // TODO: set style (red, flashing, etc.).
@@ -174,7 +174,7 @@ function EncryptAndStoreRSA(name, value)
   rsa.setPublic(GetModulus(), GetPublicExponent());
   var encrypted = rsa.encrypt(value);
   if(encrypted) {
-    document.RequestForm[name].value = hex2b64(encrypted);
+    document.forms['RequestForm'][name].value = hex2b64(encrypted);
   }
 }
 
@@ -191,7 +191,7 @@ function EncryptAndStoreAES(name, value, key)
   var encrypted = GibberishAES.enc(value, key);
   // Note: GibberishAES.enc does return base64 encoded data already.
   if(encrypted) {
-    document.RequestForm[name].value = encrypted;
+    document.forms['RequestForm'][name].value = encrypted;
   }
 }
 
@@ -250,7 +250,7 @@ function EncryptAndSubmit()
   }
   EncryptAndStoreAES('action', action, encryption_key);
 
-  document.RequestForm.submit();
+  document.forms['RequestForm'].submit();
   return true;
 }
 

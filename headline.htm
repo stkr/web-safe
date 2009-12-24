@@ -1,6 +1,14 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html>
 	<head>
+		<title>Online Password Safe - Headline</title>
+		<link rev="made" href="mailto:skrug%40gmx.at" />
+		<link rel="stylesheet" type="text/css" href="/pwsafe/pwsafe.css" />
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 		<script type="text/javascript">
+			//<![CDATA[
+			//<!--
 			var master_password = '';
 			var request_key = '';
 
@@ -9,9 +17,10 @@
 				window.master_password = '';
 				var obj;
 				if (obj = document.getElementById('pwsafe-web-master_password-query')) {
-				obj.innerHTML =
-				      '<input type="text" id="pwsafe-web-master_password-field" name="master_password" size="40" />&nbsp;&nbsp;' +
-					    '<input type="button" value="unlock" onClick="SubmitMasterPassword()" />'
+				obj.innerHTML = '<form action="headline.htm" onsubmit="return false">' +
+				      '<div><input type="text" id="pwsafe-web-master_password-field" name="master_password" size="40" />&nbsp;&nbsp;' +
+					    '<input type="button" value="unlock" onclick="SubmitMasterPassword()" /><\/div>' +
+							'<\/form>'
 				document.getElementById('pwsafe-web-master_password-field').focus();
 				}
 			}
@@ -23,15 +32,17 @@
 					window.master_password = obj.value;
 				}
 				if (obj = document.getElementById('pwsafe-web-master_password-query')) {
-					obj.innerHTML = '<a href="javascript: QueryMasterPassword();">enter new master password</a>';
+					obj.innerHTML = '<a href="javascript:QueryMasterPassword();">enter new master password<\/a>';
 				}
 			}
+			//-->
+		  //]]>
 		</script>
 	</head>
-	<body>
-		<h1>Password Safe</h1>
+		<body>
+		<h1>Online Password Safe</h1>
 		<div id="pwsafe-web-master_password-query">
-			<a href="javascript: QueryMasterPassword();">enter new master password</a></div>
+			<a href="javascript:QueryMasterPassword();">enter new master password</a></div>
 		<div id="pwsafe-web-error">&nbsp;</div>
 	</body>
 </html>
