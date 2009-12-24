@@ -295,7 +295,7 @@ sub RecursiveList
     # Only if we have a hash, we need to check it.
     # It it is not, it is already an attribute of a password.
     if (ref($value) eq 'HASH') {
-      # If the has contains a 'UUID' key, it is a password. Otherwise, it is a group.
+      # If the hash contains a 'UUID' key, it is a password. Otherwise, it is a group.
       if (defined $value->{'UUID'}) {
         # If the password has a title, add it to the list.
         if ($value ->{'title'} ne '') {
@@ -354,6 +354,18 @@ sub HtmlPasswordList
   return sprintf '<li><a href="javascript: OpenPassword(\'%s\', \'%s\')">%s</a></li>', $_[0], $_[1]->{'UUID'}, $_[1]->{'title'};
 }
 
+# Return a formatted version of a timestamp.
+# Params:
+#   - either one epoch value (# of seconds since 1.1.1900)
+#   - or $sec,$min,$hour,$mday,$mon,$year
+sub HtmlFormatTime
+{
+  my ($sec,$min,$hour,$mday,$mon,$year);
+  if (scalar @_ == 1) { ($sec,$min,$hour,$mday,$mon,$year) = gmtime($_[0]); }
+  else { ($sec,$min,$hour,$mday,$mon,$year) = @_; }
+  return sprintf "%4d-%02d-%02d %02d:%02d:%02d\n", $year+1900,$mon+1,$mday,$hour,$min,$sec;
+}
+
 # Create the html code for the details of a single password.
 # Params:
 #   - password: A reference to a hash containing password information.
@@ -361,6 +373,19 @@ sub HtmlPasswordDetails
 {
   my $password = $_[0];
   my $result = "<h3>$password->{'title'}</h3>";
+  $result .= "<table>";
+  # TODO: I don't like the names for the hash keys used here.
+  # They depend on the Pwsafe module, so a modification of the Pwsafe module
+  # would also be required to change them.
+  if ($password->{'user'}) { $result .= "<tr><td>User:</td><td>$password->{'user'}</td></tr>"; }
+  if ($password->{'Password'}) { $result .= "<tr><td>Password:</td><td>$password->{'Password'}</td></tr>"; }
+  if ($password->{'URL'}) { $result .= "<tr><td>URL:</td><td>$password->{'URL'}</td></tr>"; }
+  if ($password->{'Notes'}) { $result .= "<tr><td>Notes:</td><td>$password->{'Notes'}</td></tr>"; }
+  if ($password->{'ATime'}) { $result .= "<tr><td>Created:</td><td>".HtmlFormatTime($password->{'ATime'})."</td></tr>"; }
+  if ($password->{'RecordMTime'}) { $result .= "<tr><td>Last Modified:</td><td>".HtmlFormatTime($password->{'RecordMTime'})."</td></tr>"; }
+  if ($password->{'PWMTime'}) { $result .= "<tr><td>Last Password Change:</td><td>".HtmlFormatTime($password->{'PWMTime'})."</td></tr>"; }
+  if ($password->{'PWHistory'}) { $result .= "<tr><td></td><td>$password->{'PWHistory'}</td></tr>"; }
+  $result .= "</table>";
   return $result;
 }
 
