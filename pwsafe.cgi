@@ -493,9 +493,9 @@ if ($cgi->param()) {
 }
 
 # Generate the page contents based on the action and parameters.
-$page .= PasswordFileList();
+$page .= '<div id="pwsafe-web-list">'.PasswordFileList().'</div>';
 # If there is a password hash reference, we display its details.
-if (ref $password_hash) { $page .= HtmlPasswordDetails($password_hash); }
+if (ref $password_hash) { $page .= '<div id="pwsafe-web-details">'.HtmlPasswordDetails($password_hash).'</div>'; }
 
 # The ResponseForm contains only data from the server to the client.
 $page .= $cgi->start_form(-name=>'ResponseForm',
