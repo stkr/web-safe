@@ -1,12 +1,37 @@
 <html>
 	<head>
-		<script>
+		<script type="text/javascript">
 			var master_password = '';
 			var request_key = '';
+
+			function QueryMasterPassword()
+			{
+				window.master_password = '';
+				var obj;
+				if (obj = document.getElementById('pwsafe-web-master_password-query')) {
+				obj.innerHTML =
+				      '<input type="text" id="pwsafe-web-master_password-field" name="master_password" size="40" />&nbsp;&nbsp;' +
+					    '<input type="button" value="unlock" onClick="SubmitMasterPassword()" />'
+				document.getElementById('pwsafe-web-master_password-field').focus();
+				}
+			}
+
+			function SubmitMasterPassword()
+			{
+				var obj;
+				if (obj = document.getElementById('pwsafe-web-master_password-field')) {
+					window.master_password = obj.value;
+				}
+				if (obj = document.getElementById('pwsafe-web-master_password-query')) {
+					obj.innerHTML = '<a href="javascript: QueryMasterPassword();">enter new master password</a>';
+				}
+			}
 		</script>
 	</head>
 	<body>
 		<h1>Password Safe</h1>
+		<div id="pwsafe-web-master_password-query">
+			<a href="javascript: QueryMasterPassword();">enter new master password</a></div>
 		<div id="pwsafe-web-error">&nbsp;</div>
 	</body>
 </html>
