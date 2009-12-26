@@ -248,12 +248,12 @@ sub PasswordFileList()
 sub GroupSort
 {
 	# lc($a->{'group'}) cmp lc($b->{'group'});
-	my @a = SplitGroupname($a->{'group'});
-	my @b = SplitGroupname($b->{'group'});
+	my @a = SplitGroupname($a->{'Group'});
+	my @b = SplitGroupname($b->{'Group'});
 
 	# Some corner cases:
 	# A has no elements and b has no elements -> Same group, compare title.
-	if (((scalar @a) == 0) and ((scalar @b) == 0)) { return $a->{'title'} cmp $b->{'title'}; }
+	if (((scalar @a) == 0) and ((scalar @b) == 0)) { return $a->{'Title'} cmp $b->{'Title'}; }
 	# A has no elements.
 	elsif ((scalar @a) == 0) { return 1; }
 	# B has no elements.
@@ -276,31 +276,6 @@ sub GroupSort
 	}
 }
 
-## Traverse the pwsafe object and extract all password objects.
-# Params:
-#   - A hash reference to a node in the pwsafe tree.
-#   - A array reference which the password hashes are copied to.
-sub RecursiveList
-{
-  while (my ($key, $value) = each %{$_[0]}) {
-    # Only if we have a hash, we need to check it.
-    # It it is not, it is already an attribute of a password.
-    if (ref($value) eq 'HASH') {
-      # If the hash contains a 'UUID' key, it is a password. Otherwise, it is a group.
-      if (defined $value->{'UUID'}) {
-        # If the password has a title, add it to the list.
-        if ($value ->{'title'} ne '') {
-          # Ensure that every password hash has a group entry.
-          if (! defined $value->{'group'}) { $value->{'group'} = '' }
-          push(@{$_[1]}, $value);
-        }
-      }
-      else {
-        RecursiveList($value, $_[1]);
-      }
-    }
-  }
-}
 
 sub HtmlFilelistHeader
 {
@@ -342,7 +317,7 @@ sub HtmlGroupFooter
 #   - password: A reference to a hash containing password information.
 sub HtmlPasswordList
 {
-  return sprintf '<li class="password"><a href="javascript:OpenPassword(\'%s\',\'%s\')">%s</a></li>', $_[0], $_[1]->{'UUID'}, $_[1]->{'title'};
+  return sprintf '<li class="password"><a href="javascript:OpenPassword(\'%s\',\'%s\')">%s</a></li>', $_[0], $_[1]->{'UUID'}, $_[1]->{'Title'};
 }
 
 # Return a formatted version of a timestamp.
@@ -363,7 +338,7 @@ sub HtmlFormatTime
 sub HtmlPasswordDetails
 {
   my $password = $_[0];
-  my $result = "<h3>$password->{'title'}</h3>";
+  my $result = "<h3>$password->{'Title'}</h3>";
   $result .= '<table summary="Password details.">';
   # TODO: I don't like the names for the hash keys used here.
   # They depend on the Pwsafe module, so a modification of the Pwsafe module
@@ -430,9 +405,7 @@ sub PasswordList($$)
   my ($filename, $key) = @_;
   my ($name, $directories, $suffix) = fileparse($filename);
   my $result;
-  my $pwsafe = Crypt::Pwsafe->new($filename, $key);
-  my @passwords = ();
-  RecursiveList(\%{$pwsafe}, \@passwords);
+  my @passwords = @{Crypt::Pwsafe->new($filename, $key)};
   # So at this point we have an array containing all passwords.
   # Sort the passwords by groupname:
   @passwords = sort GroupSort @passwords;
@@ -441,9 +414,9 @@ sub PasswordList($$)
   # Print the group and password hierarchy.
   my $last_group = '';
   foreach (@passwords) {
-    if ($_->{'group'} ne $last_group) {
-      $result .= HtmlChangeGroup($last_group, $_->{'group'});
-      $last_group = $_->{'group'};
+    if ($_->{'Group'} ne $last_group) {
+      $result .= HtmlChangeGroup($last_group, $_->{'Group'});
+      $last_group = $_->{'Group'};
     }
     # If the password we want to open is encountered, we save it in
     # the global $password_hash reference.

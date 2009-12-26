@@ -20,11 +20,11 @@ if ($@) { $CIPHER .= "_PP"; eval "use $CIPHER" }
 
 =head1 VERSION
 
-Version 1.2
+Version 1.2-flat
 
 =cut
 
-our $VERSION = '1.2';
+our $VERSION = '1.2-flat';
 
 our $DEBUG = 0;
 
@@ -34,9 +34,6 @@ our $DEBUG = 0;
     my $file = 'pwsafe.psafe3';
     my $key = Crypt::Pwsafe::enter_combination();
     my $pwsafe = Crypt::Pwsafe->new($file, $key);
-
-    # The password for 'user' at 'host' computer in 'Test group'
-    my $passwd = $pwsafe->{'Test group'}->{'user@host'};
 
 =cut
 
@@ -159,7 +156,7 @@ sub _cbc_twofish {
 		return $curr_plain;
 	};
 	my $plain = "";
-	my $pwsafe = {};
+	my $pwsafe = [];
 	my $crypt_len = length($crypt);
 	my ($group, $title, $user);
 	my $entry = {};
@@ -183,35 +180,28 @@ sub _cbc_twofish {
 			}
 		}
 		$plain .= $buf;
-		#print unpack("H*", $buf), "\n";
+
 		if ($type == 1) { # UUID
 			$entry->{UUID} = unpack("H*", $buf);
 			print "\tUUID=$entry->{UUID}\n" if $DEBUG;
-		} elsif ($type == 2) {    # Group
-			$group = pack("U0C*", unpack("C*", $buf));
-			$entry->{group} = $group;
-			print "Group=$group\n" if $DEBUG;
-		} elsif ($type == 3) {    # Title
-			$title = pack("U0C*", unpack("C*", $buf));
-			$entry->{title} = $title;
-			print "  Title=$title\n" if $DEBUG;
-		} elsif ($type == 4) {    # Username
-			$user  = pack("U0C*", unpack("C*", $buf));
-			$entry->{user} = $user;
-			print "    User=$user\n" if $DEBUG;
-		} elsif ($type == 0xff) { # End of Entry
-			if (defined($title) and defined($user)) {
-				if (exists $pwsafe->{$group}) {
-					$pwsafe->{$group}->{"$user\@$title"} = $entry;
-				} else {
-					$pwsafe->{$group} = {"$user\@$title" => $entry};
+		}
+		elsif ($type == 0xff) { # End of Entry
+			# If there is a reasonable uuid,
+			if ((defined $entry->{UUID}) and
+						($entry->{UUID} ne '00000000000000000000000000000000') and
+						($entry->{UUID} =~ /^[0-9a-fA-F]+$/)) {
+				# and a title,
+				if (defined $entry->{Title}) {
+					# then save the password.
+
+					# There must always be a group defined!
+					if (not defined $entry->{Group}) { $entry->{Group} = ''; }
+					push (@$pwsafe, $entry);
+					$entry = {};
 				}
-			} else {
-				$pwsafe->{$group} = { dummy => $entry};
 			}
-			($group, $title, $user) = (undef, undef, undef);
-			$entry = {};
-		} else {
+		}
+		else {
 			my $descr = $FieldType{$type};
 			$descr = "Type$type" unless defined $descr;
 			my $value;
@@ -256,6 +246,8 @@ sub get_password {
 
 Shufeng Tan, C<< <shufengtan at gmail.com> >>
 
+flat array adaption by: Stefan Krug, C<< <sk at skobeloff.eu> >>
+
 =head1 BUGS
 
 Please report any bugs or feature requests to
@@ -271,6 +263,8 @@ You can find documentation for this module with the perldoc command.
     perldoc Crypt::Pwsafe
 
 You can also look for information at:
+(the found information is concerning the original unmodified
+Crypt::Pwsafe module by Shufeng Tan)
 
 =over 4
 
