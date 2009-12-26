@@ -221,15 +221,6 @@ sub SplitGroupname
 }
 
 
-sub OpenPwsafe($$)
-{
-  my $file = shift;
-  my $key = shift;
-  my $pwsafe = Crypt::Pwsafe->new($file, $key);
-  return $pwsafe;
-}
-
-
 # Generate a password file list and return the html code.
 sub PasswordFileList()
 {
