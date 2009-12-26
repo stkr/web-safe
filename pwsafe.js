@@ -145,6 +145,11 @@ function GetDecryptedPage()
   // decryption was successful.
   if (page.substr(0,30) != '<!-- pwsafe-web page start -->') {
     SetError('GetDecryptedPage: Error decrypting the page.');
+    // If the decryption fails, fallback to the plain filelist.
+    // We set the request key to '' and perform a simple get
+    // request which does not contain the script parameters.
+    SetRequestKey('');
+    self.location.href = self.location.href;
     return '';
   }
   return page;
