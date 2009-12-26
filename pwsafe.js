@@ -66,7 +66,7 @@ function ResetError()
   var error_obj = top.frame_headline.document.getElementById('pwsafe-web-error');
   if (error_obj) {
     error_obj.innerHTML = '&nbsp;';
-    // TODO: reset style.
+    error_obj.setAttribute('class', '');
   }
 }
 
@@ -75,7 +75,7 @@ function SetError(error)
   var error_obj = top.frame_headline.document.getElementById('pwsafe-web-error');
   if (error_obj) {
     error_obj.innerHTML = error;
-    // TODO: set style (red, flashing, etc.).
+    error_obj.setAttribute('class', 'error');
     window.setTimeout('ResetError()', 3000);
   }
   else {

@@ -313,7 +313,7 @@ sub RecursiveList
 
 sub HtmlFilelistHeader
 {
-  return '<ul>';
+  return '<ul class="filelist">';
 }
 
 sub HtmlFilelistFooter
@@ -323,7 +323,7 @@ sub HtmlFilelistFooter
 
 sub HtmlPasswordFile
 {
-  return sprintf '<li><a href="javascript:OpenFile(\'%s\')">%s</a></li>', $_[0], $_[0];
+  return sprintf '<li class="file"><a href="javascript:OpenFile(\'%s\')">%s</a></li>', $_[0], $_[0];
 }
 
 # Create the html code for a group header.
@@ -335,7 +335,7 @@ sub HtmlPasswordFile
 sub HtmlGroupHeader
 {
   my ($group_id, $group_name) = @_;
-  return sprintf('<li><a id="%s_link" href="javascript:HideGroup(\'%s\')">%s</a><ul id="%s">', $group_id, $group_id, $group_name, $group_id);
+  return sprintf('<li class="group"><a id="%s_link" href="javascript:HideGroup(\'%s\')">%s</a><ul id="%s">', $group_id, $group_id, $group_name, $group_id);
 }
 
 # Create the html code for the end of a group. Must match the code
@@ -351,7 +351,7 @@ sub HtmlGroupFooter
 #   - password: A reference to a hash containing password information.
 sub HtmlPasswordList
 {
-  return sprintf '<li><a href="javascript:OpenPassword(\'%s\',\'%s\')">%s</a></li>', $_[0], $_[1]->{'UUID'}, $_[1]->{'title'};
+  return sprintf '<li class="password"><a href="javascript:OpenPassword(\'%s\',\'%s\')">%s</a></li>', $_[0], $_[1]->{'UUID'}, $_[1]->{'title'};
 }
 
 # Return a formatted version of a timestamp.
