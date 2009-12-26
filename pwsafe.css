@@ -8,7 +8,7 @@ body {
 
 #pwsafe-web-headline {
 	float: left;
-	width: 59;
+	width: 59%;
 }
 
 #pwsafe-web-master_password-query {
@@ -28,6 +28,7 @@ body {
 	float:left;
 	width:38%;
 	border: 1px dotted black;
+	overflow: auto;
 }
 
 #pwsafe-web-list li.file {

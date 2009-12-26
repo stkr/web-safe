@@ -83,6 +83,27 @@ function SetError(error)
   }
 }
 
+/** Return the height of the viewport for the document.
+ *  found on http://www.howtocreate.co.uk/tutorials/javascript/browserwindow
+ */
+function GetViewportHeight()
+{
+  var myWidth = 0, myHeight = 0;
+  if( typeof( window.innerWidth ) == 'number' ) {
+    //Non-IE
+    myWidth = window.innerWidth;
+    myHeight = window.innerHeight;
+  } else if( document.documentElement && ( document.documentElement.clientWidth || document.documentElement.clientHeight ) ) {
+    //IE 6+ in 'standards compliant mode'
+    myWidth = document.documentElement.clientWidth;
+    myHeight = document.documentElement.clientHeight;
+  } else if( document.body && ( document.body.clientWidth || document.body.clientHeight ) ) {
+    //IE 4 compatible
+    myWidth = document.body.clientWidth;
+    myHeight = document.body.clientHeight;
+  }
+  return myHeight;
+}
 
 /* function ByteArrayToHexStr(&array)
 {
@@ -313,6 +334,16 @@ function HidePassword()
   link.innerHTML = 'show';
 }
 
+
+/** Resize the user interface so it matches the screen dimensions */
+function ResizeUserInterface() {
+  var list = document.getElementById('pwsafe-web-list')
+  if (list) {
+    var height = Math.floor(GetViewportHeight() * 0.9);
+    list.style.height = height + 'px';
+  }
+}
+
 function EvPwsafeBodyLoad()
 {
   // Write the page to the document.
@@ -320,6 +351,10 @@ function EvPwsafeBodyLoad()
 
   // Seed the random number generator.
   rng_seed_time();
+  ResizeUserInterface();
+
+  // Install the resize handler.
+  window.onresize = EvPwsafeResize;
 }
 
 function EvPwsafeBodyKeyPress()
@@ -327,6 +362,11 @@ function EvPwsafeBodyKeyPress()
   // Seed the random number generator.
   rng_seed_time();
   return true;
+}
+
+function EvPwsafeResize()
+{
+  ResizeUserInterface();
 }
 
 function EvRequestFormOnSubmit()
