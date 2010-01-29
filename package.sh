@@ -2,9 +2,10 @@
 
 # Where to copy the files to.
 # No traling slash!
-TEMP_PATH='pwsafe'
+TEMP_PATH='pwsafe-web'
 
 mkdir -p "${TEMP_PATH}"
+chmod 0755 "${TEMP_PATH}";
 cp -u "pwsafe.css" "${TEMP_PATH}/pwsafe.css"
 cp -u "pwsafe.cgi" "${TEMP_PATH}/pwsafe.cgi"
 cp -u "index.htm" "${TEMP_PATH}/index.htm"
