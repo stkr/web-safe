@@ -4,7 +4,7 @@
 	<head>
 		<title>Online Password Safe - Headline</title>
 		<link rev="made" href="mailto:skrug%40gmx.at" />
-		<link rel="stylesheet" type="text/css" href="/pwsafe/pwsafe.css" />
+       <link rel="stylesheet" type="text/css" href="pwsafe.css" />
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 		<script type="text/javascript">
 			//<![CDATA[
@@ -16,22 +16,22 @@
 			{
 				window.master_password = '';
 				var obj;
-				if (obj = document.getElementById('pwsafe-web-master_password-query')) {
+				if (obj = document.getElementById('web-safe-master_password-query')) {
 				obj.innerHTML = '<form action="headline.htm" onsubmit="return false">' +
-				      '<div><input type="text" id="pwsafe-web-master_password-field" name="master_password" size="40" />&nbsp;&nbsp;' +
+				      '<div><input type="text" id="web-safe-master_password-field" name="master_password" size="40" />&nbsp;&nbsp;' +
 					    '<input type="button" value="unlock" onclick="SubmitMasterPassword()" /><\/div>' +
 							'<\/form>'
-				document.getElementById('pwsafe-web-master_password-field').focus();
+				document.getElementById('web-safe-master_password-field').focus();
 				}
 			}
 
 			function SubmitMasterPassword()
 			{
 				var obj;
-				if (obj = document.getElementById('pwsafe-web-master_password-field')) {
+				if (obj = document.getElementById('web-safe-master_password-field')) {
 					window.master_password = obj.value;
 				}
-				if (obj = document.getElementById('pwsafe-web-master_password-query')) {
+				if (obj = document.getElementById('web-safe-master_password-query')) {
 					obj.innerHTML = '<a href="javascript:QueryMasterPassword();">change master password<\/a>';
 				}
 			}
@@ -40,9 +40,9 @@
 		</script>
 	</head>
 		<body>
-		<h1 id="pwsafe-web-headline">Online Password Safe</h1>
-		<div id="pwsafe-web-master_password-query">
+		<h1 id="web-safe-headline">Online Password Safe</h1>
+		<div id="web-safe-master_password-query">
 			<a href="javascript:QueryMasterPassword();">enter master password</a></div>
-		<div id="pwsafe-web-error">&nbsp;</div>
+		<div id="web-safe-error">&nbsp;</div>
 	</body>
 </html>

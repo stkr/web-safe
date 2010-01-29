@@ -58,12 +58,12 @@ function SetPassword(password)
 
 function SetContent(page)
 {
-  document.getElementById('pwsafe-web-content').innerHTML = page;
+  document.getElementById('web-safe-content').innerHTML = page;
 }
 
 function ResetError()
 {
-  var error_obj = top.frame_headline.document.getElementById('pwsafe-web-error');
+  var error_obj = top.frame_headline.document.getElementById('web-safe-error');
   if (error_obj) {
     error_obj.innerHTML = '&nbsp;';
     error_obj.setAttribute('class', '');
@@ -72,7 +72,7 @@ function ResetError()
 
 function SetError(error)
 {
-  var error_obj = top.frame_headline.document.getElementById('pwsafe-web-error');
+  var error_obj = top.frame_headline.document.getElementById('web-safe-error');
   if (error_obj) {
     error_obj.innerHTML = error;
     error_obj.setAttribute('class', 'error');
@@ -143,7 +143,7 @@ function GetDecryptedPage()
   }
   // Look for the known start string to check if
   // decryption was successful.
-  if (page.substr(0,30) != '<!-- pwsafe-web page start -->') {
+  if (page.substr(0,28) != '<!-- web-safe page start -->') {
     SetError('GetDecryptedPage: Error decrypting the page.');
     // If the decryption fails, fallback to the plain filelist.
     // We set the request key to '' and perform a simple get
@@ -342,7 +342,7 @@ function HidePassword()
 
 /** Resize the user interface so it matches the screen dimensions */
 function ResizeUserInterface() {
-  var list = document.getElementById('pwsafe-web-list')
+  var list = document.getElementById('web-safe-list')
   if (list) {
     var height = Math.floor(GetViewportHeight() * 0.9);
     list.style.height = height + 'px';

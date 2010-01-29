@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 
-# pwsafe-web - An online password safe solution.
+# web-safe - A browser based online password safe solution.
 # Copyright (C) 2010  Stefan Krug
 #
 # This program is free software: you can redistribute it and/or modify
@@ -28,15 +28,15 @@ use warnings;
 # This is the location which can be used to access the html files of the
 # application. It is recommended to use a server-relative-url
 # (starting with a slash) here.
-my $base_uri='/pwsafe-web';
+my $base_uri='/web-safe';
 # This is the absolute path of the folder where the temporary private key
 # files are stored. It must be writeable by the user which executes the
 # cgi script.
-my $key_dir='/srv/www/pwsafe-web/data/';
+my $key_dir='/srv/www/web-safe/data/';
 # This is the absolute path of the folder where the safe files can be
 # found. The safe files must be readable by the user which executes the
 # cgi script.
-my $safe_dir='/srv/www/pwsafe-web/safes/';
+my $safe_dir='/srv/www/web-safe/safes/';
 #
 # End of Configuration
 # -------------------------
@@ -101,7 +101,7 @@ my $encryption_needed = 0;
 # Contains the contents of the generated html page.
 # The first few characters contain a commonly known string which is
 # used to check whether decryption was successful by javascript.
-my $page = "<!-- pwsafe-web page start -->\n";
+my $page = "<!-- web-safe page start -->\n";
 
 # open(OPENSSL, 'openssl genrsa 1024 |') || die "Unable to open openssl: $!\n";
 # while (<OPENSSL>) { $key .= $_; }
@@ -545,9 +545,9 @@ if ($cgi->param()) {
 if ($modulus eq '') { OpensslGenRsaKey(); }
 
 # Generate the page contents based on the action and parameters.
-$page .= '<div id="pwsafe-web-list">'.PasswordFileList().'</div>';
+$page .= '<div id="web-safe-list">'.PasswordFileList().'</div>';
 # If there is a password hash reference, we display its details.
-if (ref $password_hash) { $page .= '<div id="pwsafe-web-details">'.HtmlPasswordDetails($password_hash).'</div>'; }
+if (ref $password_hash) { $page .= '<div id="web-safe-details">'.HtmlPasswordDetails($password_hash).'</div>'; }
 
 # The ResponseForm contains only data from the server to the client.
 $page .= $cgi->start_form(-id=>'ResponseForm',
@@ -603,7 +603,7 @@ else {
   $page64 = OpensslAesEncrypt($page, $request_key);
 }
 $page64 = JavascriptBase64Format($page64);
-# $page64 = JavascriptBase64Format(encode_base64("<!-- pwsafe-web page start -->\n"));
+# $page64 = JavascriptBase64Format(encode_base64("<!-- web-safe page start -->\n"));
 
 
 # Write the page contents to the client.
@@ -661,8 +661,8 @@ print $cgi->start_html(  -dtd=>1,
 
 # TODO: clear everything on close!
 
-print '<div id="pwsafe-web-content">&nbsp;</div>';
-print '<div id="pwsafe-web-debug">&nbsp;</div>';
+print '<div id="web-safe-content">&nbsp;</div>';
+print '<div id="web-safe-debug">&nbsp;</div>';
 
 # print $page;
 print $debug;

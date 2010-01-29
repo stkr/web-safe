@@ -1,9 +1,8 @@
 
- WebSafe
+ Web-Safe
 ============
 
-An open source online password safe application.
-
+A browser based online password safe solution.
 
  Purpose
 -----------
@@ -26,7 +25,7 @@ the web browser.
 ### Cgi Part Installation
 
 The cgi part of the application consists of the *pwsafe.cgi* file and the
-*Pwsafe.pm* perl module. They can be found in the *cgi-bin/pwsafe-web/*
+*Pwsafe.pm* perl module. They can be found in the *cgi-bin/web-safe/*
 folder of the distribution package. The easiest method of installation is to
 copy the whole contents including the subdirectory of the *cgi-bin* folder
 of the distribution to the *cgi-bin* folder of the webserver. A typical

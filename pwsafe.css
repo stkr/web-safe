@@ -6,57 +6,57 @@ body {
 #frame_headline {
 }
 
-#pwsafe-web-headline {
+#web-safe-headline {
 	float: left;
 	width: 59%;
 }
 
-#pwsafe-web-master_password-query {
+#web-safe-master_password-query {
 	float: right;
 	width: 39%;
 	margin-top: 20px;
 }
 
-#pwsafe-web-error {
+#web-safe-error {
 	clear: both;
 }
 
 #frame_main {
 }
 
-#pwsafe-web-list {
+#web-safe-list {
 	float:left;
 	width:38%;
 	border: 1px dotted black;
 	overflow: auto;
 }
 
-#pwsafe-web-list li.file {
+#web-safe-list li.file {
 	color: #0000cc;
 	list-style: circle;
 }
 
-#pwsafe-web-list li.group {
+#web-safe-list li.group {
 	color: #cccc00;
 	list-style: disc;
 }
 
-#pwsafe-web-list li.password {
+#web-safe-list li.password {
 	color: #00cc00;
 	list-style: square;
 }
 
-#pwsafe-web-list a {
+#web-safe-list a {
 	text-decoration: none;
 	color: #000000;
 }
 
-#pwsafe-web-list a:hover {
+#web-safe-list a:hover {
 	text-decoration: underline;
 }
 
 
-#pwsafe-web-details {
+#web-safe-details {
 	float:right;
 	width:58%;
 }
