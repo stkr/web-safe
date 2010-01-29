@@ -2,13 +2,34 @@
 
 use strict;
 use warnings;
+
+#
+# Configuration:
+# -----------------------
+#
+# This is the location which can be used to access the html files of the
+# application. It is recommended to use a server-relative-url
+# (starting with a slash) here.
+my $base_uri='/pwsafe-web';
+# This is the absolute path of the folder where the temporary private key
+# files are stored. It must be writeable by the user which executes the
+# cgi script.
+my $key_dir='/srv/www/pwsafe-web/data/';
+# This is the absolute path of the folder where the safe files can be
+# found. The safe files must be readable by the user which executes the
+# cgi script.
+my $safe_dir='/srv/www/pwsafe-web/safes/';
+#
+# End of Configuration
+# -------------------------
+
+use File::Basename;
 use CGI;
 use CGI::Carp 'fatalsToBrowser';
 # Avoid DoS attacks:
 $CGI::POST_MAX=1024 * 100;  # max 100K posts
 $CGI::DISABLE_UPLOADS = 1;  # no uploads
-
-use File::Basename;
+use MIME::Base64;
 
 # Using the Crypt::Pwsafe module found in CPAN for decrypting the
 # database. Requires the modules Crypt::Twofish and ecb end cbc encryption
@@ -25,13 +46,10 @@ use File::Basename;
 #   - Return the title and user fields within the password hash.
 use Pwsafe;
 
-my $base_uri='/pwsafe';
-my $key_dir='/srv/www/pwsafe/data/';
-my $safe_dir='/srv/www/pwsafe/safes/';
+# A global cgi object for handling the document processing.
 my $cgi = new CGI;
 
-use MIME::Base64;
-my $key = '';
+# Used for printing debug output to the document.
 my $debug;
 
 # Used (by client) for AES encryption of the request.
@@ -76,6 +94,12 @@ my $page = "<!-- pwsafe-web page start -->\n";
 my $public_exponent = '10001';
 # A hexadecimal string containing the modulus (publically known).
 my $modulus = '';
+
+
+# Sanity check the configuration:
+$base_uri =~ s/\/$//;
+$key_dir =~ s/\/$//;
+$safe_dir =~ s/\/$//;
 
 
 # Return the name of an existing key file based on a given modulus.
@@ -137,17 +161,17 @@ sub OpensslBase64Format($)
 
 # Generate a new key. This saves the public exponent and the modulus to the
 # global variables $public_exponent and $modulus. The private key file is
-# stored to $key_dir + $date + "K" + $modulus.pem.
+# stored to $key_dir + "/" + $date + "K" + $modulus.pem.
 sub OpensslGenRsaKey()
 {
   CleanupKeyFiles();
   my $filename_key = rand();
-  system("openssl genrsa -f4 1024 > \"$key_dir$filename_key\"");
-  system("chmod 600 \"$key_dir$filename_key\"");
-  $modulus = `openssl rsa -noout -modulus < \"$key_dir$filename_key\"`;
+  system("openssl genrsa -f4 1024 > \"$key_dir/$filename_key\"");
+  system("chmod 600 \"$key_dir/$filename_key\"");
+  $modulus = `openssl rsa -noout -modulus < \"$key_dir/$filename_key\"`;
   $modulus =~ s/Modulus=//; $modulus =~ s/\n|\r//g;
-  my $filename_key_new = $key_dir.time().'K'.substr($modulus, 0, 32).'.pem';
-  system("mv -u \"$key_dir$filename_key\" \"$filename_key_new\"");
+  my $filename_key_new = time().'K'.substr($modulus, 0, 32).'.pem';
+  system("mv -u \"$key_dir/$filename_key\" \"$key_dir/$filename_key_new\"");
 }
 
 # Decrypt a base64 encoded string using openssl.
@@ -157,7 +181,7 @@ sub OpensslRsaDecrypt($)
 {
   my $msg = OpensslBase64Format($_[0]);
   my $filename_key = GetKeyFile($modulus);
-  my $result = ` echo \"$msg\" | openssl base64 -d | openssl rsautl -decrypt -inkey \"$key_dir$filename_key\" `;
+  my $result = ` echo \"$msg\" | openssl base64 -d | openssl rsautl -decrypt -inkey \"$key_dir/$filename_key\" `;
 }
 
 
@@ -274,9 +298,9 @@ sub PasswordFileList()
     if (($_ ne '.') && ($_ ne '..')) {
       my ($name, $directories, $suffix) = fileparse($_);
       # If the current filename is equal to the filename of the open file,
-      if ($safe_dir.$_ eq $filename) {
+      if ($safe_dir.'/'.$_ eq $filename) {
         # then print a list of passwords.
-        $result .= PasswordList($safe_dir.$_, $master_password);
+        $result .= PasswordList($safe_dir.'/'.$_, $master_password);
       }
       else {
         $result .= HtmlPasswordFile($name);
@@ -481,12 +505,12 @@ if ($cgi->param()) {
   $action = OpensslAesDecrypt($cgi->param('action'), $encryption_key);
   if ($action eq 'view_file') {
     $master_password = OpensslAesDecrypt($cgi->param('master_password'), $encryption_key);
-    $filename = $safe_dir . OpensslAesDecrypt($cgi->param('filename'), $encryption_key);
+    $filename = $safe_dir.'/'.OpensslAesDecrypt($cgi->param('filename'), $encryption_key);
 #    $page .= '<ul>'.PasswordList($filename, $master_password).'</ul>';
   }
   elsif ($action eq 'view_password') {
     $master_password = OpensslAesDecrypt($cgi->param('master_password'), $encryption_key);
-    $filename = $safe_dir . OpensslAesDecrypt($cgi->param('filename'), $encryption_key);
+    $filename = $safe_dir.'/'.OpensslAesDecrypt($cgi->param('filename'), $encryption_key);
     $password = OpensslAesDecrypt($cgi->param('password'), $encryption_key);
   }
   else {

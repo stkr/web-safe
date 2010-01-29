@@ -9,6 +9,15 @@
 </head>
 <frameset rows="130, *">
      <frame id="frame_headline" name="frame_headline" frameborder="0" src="headline.htm" />
-     <frame id="frame_main" name="frame_main" frameborder="0" src="/cgi-bin/pwsafe/pwsafe.cgi" />
+<!--
+#
+# Configuration:
+# -----------------------
+#
+# The src of the "frame_main" frame must point to the pwsafe.cgi script of the application.
+# If you just copied the cgi-bin folder from the package to the cgi-bin directory of your webserver,
+# this probably is already set to the correct location.
+-->
+     <frame id="frame_main" name="frame_main" frameborder="0" src="/cgi-bin/pwsafe-web/pwsafe.cgi" />
 </frameset>
 </html>
