@@ -24,5 +24,5 @@ cp -u "external/Pwsafe.pm" "${TEMP_PATH}/Pwsafe.pm"
 cp -u "pwsafe.js" "${TEMP_PATH}/javascript/pwsafe.js"
 chmod 0644 "${TEMP_PATH}"/javascript/*;
 
-tar cfz "pwsafe.tgz" "${TEMP_PATH}"
+tar cfz "pwsafe-web.tgz" "${TEMP_PATH}"
 rm -r "${TEMP_PATH}"
