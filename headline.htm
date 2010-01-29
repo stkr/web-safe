@@ -17,7 +17,7 @@
 				window.master_password = '';
 				var obj;
 				if (obj = document.getElementById('web-safe-master_password-query')) {
-				obj.innerHTML = '<form action="headline.htm" onsubmit="return false">' +
+				obj.innerHTML = '<form action="headline.htm" onsubmit="SubmitMasterPassword(); return false;">' +
 				      '<div><input type="password" id="web-safe-master_password-field" name="master_password" size="40" />&nbsp;&nbsp;' +
 					    '<input type="button" value="unlock" onclick="SubmitMasterPassword()" /><\/div>' +
 							'<\/form>'
