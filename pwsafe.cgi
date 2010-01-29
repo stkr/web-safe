@@ -31,9 +31,7 @@ my $safe_dir='/srv/www/pwsafe/safes/';
 my $cgi = new CGI;
 
 use MIME::Base64;
-my $client_id = 1;
 my $key = '';
-# system("openssl genrsa -f4 1024 > $key_dir$client_id.pem");
 my $debug;
 
 # Used (by client) for AES encryption of the request.
@@ -74,11 +72,40 @@ my $page = "<!-- pwsafe-web page start -->\n";
 # close(OPENSSL);
 
 # A hexadecimal string containing the public exponent.
+# The public exponent is fixed for the whole application!
 my $public_exponent = '10001';
 # A hexadecimal string containing the modulus (publically known).
-# my $modulus = `openssl rsa -noout -modulus < \"$key_dir$client_id.pem\"`;
-my $modulus = 'C4600647BFA5697D5734471004A2324955ADC7EE7608694E993BB9BE446248A2EC147178FD8C5FC0635E264151272C47BB32AE005477459F42FD3BAFE3B5E0FA30799F070E83291CCFE3E3DED0CAD92C7F4AAF150233EEE2EBE3AADFD6762C3D68EE8200DFF3C04A065CF2F40671AA747C06F2D33AB2099610627AB8E3C3D49D';
-$modulus =~ s/Modulus=//;
+my $modulus = '';
+
+
+# Return the name of an existing key file based on a given modulus.
+# Params:
+#   - A modulus value (in hex format).
+sub GetKeyFile
+{
+  my $regex_filename = substr($_[0], 0, 32).'.pem';
+  opendir(my $dh, $key_dir) || die "can't opendir $key_dir: $!";
+  my @files = grep { /$regex_filename/ && -f "$key_dir/$_" } readdir($dh);
+  closedir $dh;
+  if(scalar @files > 0) { return $files[0]; }
+  else { return ''; }
+}
+
+
+# Delete old keyfiles.
+sub CleanupKeyFiles
+{
+  opendir(my $dh, $key_dir) || die "can't opendir $key_dir: $!";
+  my @files = readdir($dh);
+  closedir $dh;
+  my $now = time();
+  foreach (@files) {
+    if($_ =~ /([0-9]*K)[0-9a-fA-F]*\.pem/) {
+      # If the key is older than three hours, delete it.
+      if($1 + 10800 < $now) { unlink($_); }
+    }
+  }
+}
 
 
 # Reformat a base64 encoded string so it matches a format which
@@ -108,6 +135,20 @@ sub OpensslBase64Format($)
   return $result;
 }
 
+# Generate a new key. This saves the public exponent and the modulus to the
+# global variables $public_exponent and $modulus. The private key file is
+# stored to $key_dir + $date + "K" + $modulus.pem.
+sub OpensslGenRsaKey()
+{
+  CleanupKeyFiles();
+  my $filename_key = rand();
+  system("openssl genrsa -f4 1024 > \"$key_dir$filename_key\"");
+  system("chmod 600 \"$key_dir$filename_key\"");
+  $modulus = `openssl rsa -noout -modulus < \"$key_dir$filename_key\"`;
+  $modulus =~ s/Modulus=//; $modulus =~ s/\n|\r//g;
+  my $filename_key_new = $key_dir.time().'K'.substr($modulus, 0, 32).'.pem';
+  system("mv -u \"$key_dir$filename_key\" \"$filename_key_new\"");
+}
 
 # Decrypt a base64 encoded string using openssl.
 # Params:
@@ -115,7 +156,8 @@ sub OpensslBase64Format($)
 sub OpensslRsaDecrypt($)
 {
   my $msg = OpensslBase64Format($_[0]);
-  my $result = ` echo \"$msg\" | openssl base64 -d | openssl rsautl -decrypt -inkey \"$key_dir$client_id.pem\" `;
+  my $filename_key = GetKeyFile($modulus);
+  my $result = ` echo \"$msg\" | openssl base64 -d | openssl rsautl -decrypt -inkey \"$key_dir$filename_key\" `;
 }
 
 
@@ -154,10 +196,10 @@ sub OpensslAesCall($$$)
   else { die "Fork did not work\n"; }
 
 # Finally start the openssl executable in the main process:
-	close OPENSSL_KEY_WRITE;
-	close OPENSSL_MSG_WRITE;
-	my $fd_pass = fileno(OPENSSL_KEY_READ);
-	my $fd_in = fileno(OPENSSL_MSG_READ);
+  close OPENSSL_KEY_WRITE;
+  close OPENSSL_MSG_WRITE;
+  my $fd_pass = fileno(OPENSSL_KEY_READ);
+  my $fd_in = fileno(OPENSSL_MSG_READ);
   my $result;
   if ($direction eq 'e') {
     $result = `openssl enc -e -aes-256-cbc -a -pass file:/proc/$$/fd/$fd_pass -in /proc/$$/fd/$fd_in `;
@@ -169,8 +211,8 @@ sub OpensslAesCall($$$)
   close OPENSSL_MSG_READ;
 
 # Wait for the children to complete.
-	waitpid($key_pid,0);
-	waitpid($msg_pid,0);
+  waitpid($key_pid,0);
+  waitpid($msg_pid,0);
   return $result;
 }
 
@@ -247,33 +289,33 @@ sub PasswordFileList()
 
 sub GroupSort
 {
-	# lc($a->{'group'}) cmp lc($b->{'group'});
-	my @a = SplitGroupname($a->{'Group'});
-	my @b = SplitGroupname($b->{'Group'});
+  # lc($a->{'group'}) cmp lc($b->{'group'});
+  my @a = SplitGroupname($a->{'Group'});
+  my @b = SplitGroupname($b->{'Group'});
 
-	# Some corner cases:
-	# A has no elements and b has no elements -> Same group, compare title.
-	if (((scalar @a) == 0) and ((scalar @b) == 0)) { return $a->{'Title'} cmp $b->{'Title'}; }
-	# A has no elements.
-	elsif ((scalar @a) == 0) { return 1; }
-	# B has no elements.
-	elsif ((scalar @b) == 0) { return -1;	}
+  # Some corner cases:
+  # A has no elements and b has no elements -> Same group, compare title.
+  if (((scalar @a) == 0) and ((scalar @b) == 0)) { return $a->{'Title'} cmp $b->{'Title'}; }
+  # A has no elements.
+  elsif ((scalar @a) == 0) { return 1; }
+  # B has no elements.
+  elsif ((scalar @b) == 0) { return -1;	}
 
-	my $n = 0;
-	while(1) {
-		if ($a[$n] eq $b[$n]) {
-			$n++;
-			# Both are the same group.
-			if (($n == scalar @a) and ($n == scalar @b)) { return 0; }
-			# A is finnished, but not b. So b is a subgroup of a.
-			elsif ($n == scalar @a) { return 1; }
-			# B is finnished, but not a. So a is a subgroup of b.
-			elsif ($n == scalar @b) { return -1; }
-			# None of them is finished. Continue with the next element.
-		}
-		else { return $a[$n] cmp $b[$n]
-		}
-	}
+  my $n = 0;
+  while(1) {
+    if ($a[$n] eq $b[$n]) {
+      $n++;
+      # Both are the same group.
+      if (($n == scalar @a) and ($n == scalar @b)) { return 0; }
+      # A is finnished, but not b. So b is a subgroup of a.
+      elsif ($n == scalar @a) { return 1; }
+      # B is finnished, but not a. So a is a subgroup of b.
+      elsif ($n == scalar @b) { return -1; }
+      # None of them is finished. Continue with the next element.
+    }
+    else { return $a[$n] cmp $b[$n]
+    }
+  }
 }
 
 
@@ -433,6 +475,7 @@ sub PasswordList($$)
 # Handle the input parameters.
 # TODO: this is user input and has to be checked for sane values!!!
 if ($cgi->param()) {
+  $modulus = $cgi->param('modulus');
   $encryption_key = OpensslRsaDecrypt($cgi->param('encryption_key'));
   $request_key = OpensslAesDecrypt($cgi->param('request_key'), $encryption_key);
   $action = OpensslAesDecrypt($cgi->param('action'), $encryption_key);
@@ -452,9 +495,12 @@ if ($cgi->param()) {
     $filename = '';
     $password = '';
   }
-#  $debug .= "encryption_key: $encryption_key<br />\n";
-#  $debug .= "request_key: $request_key<br />\n";
+# $debug .= "encryption_key: $encryption_key<br />\n";
+# $debug .= "request_key: $request_key<br />\n";
 }
+
+# If we never have assigned a public exponent, we need to create a new key.
+if ($modulus eq '') { OpensslGenRsaKey(); }
 
 # Generate the page contents based on the action and parameters.
 $page .= '<div id="pwsafe-web-list">'.PasswordFileList().'</div>';
@@ -473,6 +519,8 @@ $page .= $cgi->endform;
 $page .= $cgi->start_form(-method=>'POST',
                           -id=>'RequestForm',
                           -onSubmit=>'EvRequestFormOnSubmit()');
+$page .= $cgi->div($cgi->hidden(-name=>'modulus',
+                      -default=>$modulus));
 $page .= $cgi->div($cgi->hidden(-name=>'encryption_key',
                       -default=>''));;
 $page .= $cgi->div($cgi->hidden(-name=>'request_key',
@@ -513,6 +561,7 @@ else {
   $page64 = OpensslAesEncrypt($page, $request_key);
 }
 $page64 = JavascriptBase64Format($page64);
+# $page64 = JavascriptBase64Format(encode_base64("<!-- pwsafe-web page start -->\n"));
 
 
 # Write the page contents to the client.
