@@ -45,9 +45,10 @@ use File::Basename;
 use CGI;
 use CGI::Carp 'fatalsToBrowser';
 # Avoid DoS attacks:
-$CGI::POST_MAX=1024 * 100;  # max 100K posts
+$CGI::POST_MAX = 1024 * 100;  # max 100K posts
 $CGI::DISABLE_UPLOADS = 1;  # no uploads
 use MIME::Base64;
+use JSON;
 
 # Using the Crypt::Pwsafe module found in CPAN for decrypting the
 # database. Requires the modules Crypt::Twofish and ecb end cbc encryption
@@ -68,70 +69,27 @@ use Pwsafe;
 my $cgi = new CGI;
 
 # Used for printing debug output to the document.
-my $debug;
+my $debug = '';
 
-# Used (by client) for AES encryption of the request.
-my $encryption_key = '';
+# An errormessage which gets transmitted to the client.
+my $errmsg = '';
 
-# Used (by server) for AES encryption of the response. The value is chosen
-# by the client and is different for each request. It is contained in
-# the request.
-my $request_key = '';
+# Contains the response which is sent to the client.
+my $response = {};
 
-# The master passwor used for opening the passwor safe.
-my $master_password = '';
+# An identification number for the current session.
+# This has to be transmitted for every request except the
+# initial handshake
+my $session_id = '';
 
-# The action which is about to be performed by the script.
-my $action = '';
-
-# The filename of the file which is opened. This includes the complete path.
-my $filename = '';
-
-# The UUID of the password which is displayed.
-my $password = '';
-
-# A hash reference referencing the password which is displayed in detail.
-my $password_hash = 0;
-
-# If the page contains sensitive data, this flag should be set to 1.
-# When assembling the page, it is checked and if no request key was set,
-# it is refused to send data.
-my $encryption_needed = 0;
-
-# Contains the contents of the generated html page.
-# The first few characters contain a commonly known string which is
-# used to check whether decryption was successful by javascript.
-my $page = "<!-- web-safe page start -->\n";
-
-# open(OPENSSL, 'openssl genrsa 1024 |') || die "Unable to open openssl: $!\n";
-# while (<OPENSSL>) { $key .= $_; }
-# close(OPENSSL);
-
-# A hexadecimal string containing the public exponent.
-# The public exponent is fixed for the whole application!
-my $public_exponent = '10001';
-# A hexadecimal string containing the modulus (publically known).
-my $modulus = '';
+# Used for AES encryption of the traffic.
+my $session_key = '';
 
 
 # Sanity check the configuration:
 $base_uri =~ s/\/$//;
 $key_dir =~ s/\/$//;
 $safe_dir =~ s/\/$//;
-
-
-# Return the name of an existing key file based on a given modulus.
-# Params:
-#   - A modulus value (in hex format).
-sub GetKeyFile
-{
-  my $regex_filename = substr($_[0], 0, 32).'.pem';
-  opendir(my $dh, $key_dir) || die "can't opendir $key_dir: $!";
-  my @files = grep { /$regex_filename/ && -f "$key_dir/$_" } readdir($dh);
-  closedir $dh;
-  if(scalar @files > 0) { return $files[0]; }
-  else { return ''; }
-}
 
 
 # Delete old keyfiles.
@@ -164,7 +122,8 @@ sub JavascriptBase64Format($)
 
 
 # Reformat a base64 encoded string so it matches the format expected
-# by openssl.
+# by openssl. This does also strip everything that is no valid
+# character of the base64 alphabet.
 # Openssl REQUIRES each line to have exactly 64 characters.
 # Openssl REQUIRES a newline character at the end of the file.
 # Params:
@@ -172,34 +131,24 @@ sub JavascriptBase64Format($)
 sub OpensslBase64Format($)
 {
   my $result = $_[0];
-  $result =~ s/\n|\r//g;
+  $result =~ s/[^a-zA-Z0-9+\/=]//g;
   $result = join("\n", unpack('(A64)*', $result ))."\n";
   return $result;
 }
 
-# Generate a new key. This saves the public exponent and the modulus to the
-# global variables $public_exponent and $modulus. The private key file is
-# stored to $key_dir + "/" + $date + "K" + $modulus.pem.
-sub OpensslGenRsaKey()
-{
-  CleanupKeyFiles();
-  my $filename_key = rand();
-  system("openssl genrsa -f4 1024 > \"$key_dir/$filename_key\"");
-  system("chmod 600 \"$key_dir/$filename_key\"");
-  $modulus = `openssl rsa -noout -modulus < \"$key_dir/$filename_key\"`;
-  $modulus =~ s/Modulus=//; $modulus =~ s/\n|\r//g;
-  my $filename_key_new = time().'K'.substr($modulus, 0, 32).'.pem';
-  system("mv -u \"$key_dir/$filename_key\" \"$key_dir/$filename_key_new\"");
-}
 
 # Decrypt a base64 encoded string using openssl.
 # Params:
 #   - A base64 encoded rsa encrypted string.
 sub OpensslRsaDecrypt($)
 {
-  my $msg = OpensslBase64Format($_[0]);
-  my $filename_key = GetKeyFile($modulus);
-  my $result = ` echo \"$msg\" | openssl base64 -d | openssl rsautl -decrypt -inkey \"$key_dir/$filename_key\" `;
+  my $msg = $_[0];
+  if (-e "$key_dir/$session_id") {
+    # Openssl is rather picky about its input format.
+    $msg = OpensslBase64Format($msg);
+    return ` echo \"$msg\" | openssl base64 -d | openssl rsautl -decrypt -inkey \"$key_dir/$session_id\" `;
+  }
+  return '';
 }
 
 
@@ -279,393 +228,320 @@ sub OpensslAesDecrypt($$)
 }
 
 
-# Split a group name at '.'.
-# To allow a dot in the group name, it is escaped by '\.'.
-# So an occurence of '\.' must not split the name!
-# Params:
-#   - group_name: The full name of the group.
-sub SplitGroupname
+# Generate a new session id. This creates a new public key for
+# the session and stores it in a file. Also the session creation
+# timestamp is stored in that file. Old session files are deleted.
+sub CreateSession
 {
-  my @parts = split /\./, $_[0];
+  opendir(DIR, $key_dir);
+  my @files = readdir(DIR);
+  closedir(DIR);
+  $session_id = 0;
+  # While a file with $session_id exists, create a new one.
+  while ( (scalar grep {$session_id eq $_} @files) > 0) { $session_id++; }
+  my $filename = "$key_dir/$session_id";
+  system("echo \"\" > \"$filename\" && chmod 600 \"$filename\"");
+  system("openssl genrsa -f4 1024 >> \"$filename\"");
+  system("echo \"created: ".time()."\" >> \"$filename\"");
+}
+
+
+# Get the session key for the current sesion_id.
+sub GetSessionKey
+{
+  my $filename = "$key_dir/$session_id";
+  if (-e "$filename") {
+    my $session_key = '';
+    open FH, " < $filename";
+    while(<FH>) {
+      if ($_ =~ /^\s*session_key:\s*([a-zA-Z0-9]*)/) {
+        $session_key = $1;
+        last;
+      }
+    }
+    close FH;
+    return $session_key;
+  }
+}
+
+
+# Return a reference to an array containing all
+# found safe files (without the path).
+sub GetFiles
+{
+  opendir(DIR, $safe_dir);
+  my @result = grep { ! /^.{1,2}$/ } readdir(DIR);
+  closedir(DIR);
+  return \@result;
+}
+
+
+# Return an array reference to all passwords found in the
+# safe file.
+# Params:
+#   - $safe: The filename of the safe (without path).
+#   - $key: The master password to open the safe with.
+sub GetPasswordList
+{
+  my ($safe, $key) = @_;
   my @result = ();
-  my $keep = '';
-  for (my $n = 0; $n < (scalar @parts); $n++) {
-    if ($parts[$n] =~ /\\$/) {
-      $keep .= substr($parts[$n], 0, -1) . '.';
-      if (($n + 1) == (scalar @parts)) {
-        push @result, $keep.$parts[$n + 1];
+  my $filename = "$safe_dir/$safe";
+  if ( -e $filename) {
+    @result = @{Crypt::Pwsafe->new($filename, $key)};
+  }
+  else { $errmsg = "Uknown file: $filename"; }
+  return \@result;
+}
+
+
+# Return a reference to a hash containing all details for
+# a password.
+# Params:
+#   - $id: An identification for the password for which details
+#          are returned.
+#   - $passwords: An reference to an array containing all passwords.
+sub GetPasswordDetails
+{
+  my ($id, $passwords) = @_;
+  my %result = ();
+  foreach (@$passwords) {
+    if ((defined $_->{'UUID'}) and ($_->{'UUID'} eq $id)) {
+      %result = %$_;
+    }
+  }
+  return \%result;
+}
+
+
+# Filter the passwords list so that it does only
+# contain id, title, group and username.
+# Params:
+#   - $passwords: An reference to an array containing all passwords.
+sub FilterDetails
+{
+  my ($passwords) = @_;
+  my @result = ();
+  foreach (@$passwords) {
+    my $password = {};
+    if (defined $_->{'UUID'}) { $password->{'uuid'} = $_->{'UUID'}; }
+    if (defined $_->{'Title'}) { $password->{'title'} = $_->{'Title'}; }
+    if (defined $_->{'Group'}) { $password->{'group'} = $_->{'Group'}; }
+    if (defined $_->{'user'}) { $password->{'user'} = $_->{'user'}; }
+    push(@result, $password);
+  }
+  return \@result;
+}
+
+
+# Append data to the data hash of the response.
+# Param
+#   - a reference to a hash which is merged with the data
+#     hash of the response.
+sub AppendToResponseData
+{
+  if (defined $response->{'data'}) {
+    %{$response->{'data'}} = (%{$response->{'data'}}, %{$_[0]});
+  }
+  else {
+    $response->{'data'} = $_[0];
+  }
+}
+
+
+# Json encode the response. The data is encrypted (unless encryption
+# is disabled for this request) and base64 encoded so it can be
+# safely included in a json string.
+sub EncodeResponse
+{
+  if (! defined ($response->{'disable-encryption'})) {
+    if ($session_key ne '') {
+      $response->{'encrypted'} = 1;
+      if (defined $response->{'data'}) {
+        $response->{'data'} = JavascriptBase64Format(OpensslAesEncrypt(encode_json($response->{'data'}), $session_key));
       }
     }
     else {
-      push @result, $keep.$parts[$n];
-      $keep = '';
+      # If any function has set an errormessage already, use that one.
+      # Otherwise, create a new one.
+      if (! defined $response->{'errmsg'}) {
+        $response->{'errmsg'} = 'No session key was found.';
+      }
+      delete $response->{'data'};
     }
   }
-  return @result;
+  else { delete $response->{'disable-encryption'}; }
+  return encode_json($response);
 }
 
 
-# Generate a password file list and return the html code.
-sub PasswordFileList()
+# Handle client authentication.
+sub InitSession
 {
-  my $result = HtmlFilelistHeader();
+  CreateSession();
+  SendServerAuth();
+}
+
+
+# Send server authentication data.
+sub SendServerAuth
+{
+  my $filename = "$key_dir/$session_id";
+  my $modulus = `openssl rsa -noout -modulus < \"$filename\"`;
+  $modulus =~ s/Modulus=//; $modulus =~ s/\n|\r//g;
+  $response = { 'disable-encryption' => 1,
+                'type' => 'server_auth',
+                'modulus_server' => $modulus,
+                'public_exponent_server' => '10001',
+                'session_id' => $session_id };
+}
+
+
+# Handle client sending session key.
+sub SetSessionKey
+{
+  my ($session_key_encrypted) = @_;
+  my $filename = "$key_dir/$session_id";
+  $session_key = OpensslRsaDecrypt($session_key_encrypted);
+  # This is user input. So we must sanitize it.
+  $session_key =~ s/[^0-9a-zA-Z]//g;
+  if (length($session_key) < 64) { $session_key = '' };
+  open FH, " >> $filename";
+  print FH 'session_key: '.$session_key."\n";
+  close FH;
+  SendFileList();
+}
+
+# Add a file list to the response.
+sub SendFileList
+{
+  # Read the available safe files.
+  my $files = GetFiles();
+  AppendToResponseData( { 'action' => 'SendFileList',
+                          'files' => $files });
+}
+
+# Add a password list to the response.
+# Params:
+#   - $safe: The filename of the safe (without path).
+#   - $key: The master password to open the safe with.
+sub SendPasswordList
+{
+  my ($safe, $key) = @_;
+  # Read the available safe files.
+  my $passwords = GetPasswordList($safe, $key);
+  # Filter the passwords list before transmission.
+  # It should only contain id, title, group and username.
+  $passwords = FilterDetails($passwords);
+  AppendToResponseData ({ 'action' => 'SendPasswordList',
+                          'safe_active' => $safe,
+                          'passwords' => $passwords });
+}
+
+# Add the password details for a password to the response.
+# Params:
+#   - $safe: The filename of the safe (without path).
+#   - $password: The uuid of the password to add.
+#   - $key: The master password to open the safe with.
+sub SendPasswordDetails
+{
+  my ($safe, $password, $key) = @_;
+  # Read the available safe files.
+  my $passwords = GetPasswordList($safe, $key);
+  my $password_details = {};
+  foreach (@$passwords) {
+    if ((defined $_->{'UUID'}) and ($_->{'UUID'} eq $password)) {
+      $password_details->{'uuid'} = $_->{'UUID'};
+      if (defined $_->{'User'}) { $password_details->{'user'} = $_->{'User'}; }
+      if (defined $_->{'Title'}) { $password_details->{'title'} = $_->{'Title'}; }
+      if (defined $_->{'Password'}) { $password_details->{'password'} = $_->{'Password'}; }
+      if (defined $_->{'Group'}) { $password_details->{'group'} = $_->{'Group'}; }
+      if (defined $_->{'URL'}) { $password_details->{'url'} = $_->{'URL'}; }
+      if (defined $_->{'Notes'}) { $password_details->{'notes'} = $_->{'Notes'}; }
+      if (defined $_->{'ATime'}) { $password_details->{'atime'} = $_->{'ATime'}; }
+      if (defined $_->{'RecordMTime'}) { $password_details->{'mtime'} = $_->{'RecordMTime'}; }
+      if (defined $_->{'PWMTime'}) { $password_details->{'pwmtime'} = $_->{'PWMTime'}; }
+      if (defined $_->{'PWHistory'}) { $password_details->{'history'} = $_->{'PWHistory'}; }
+      last;
+    }
+  }
+  AppendToResponseData ({ 'action' => 'SendPasswordDetails',
+                          'safe_active' => $safe,
+                          'password_active' => $password,
+                          'password_details' => $password_details});
+}
+
+
+# Check if a specified filename matches a safe.
+sub ValidSafe
+{
+  my $filename = shift;
   opendir(DIR, $safe_dir);
-  my @files = readdir(DIR);
+  my @result = grep { ! /^$filename$/ } readdir(DIR);
   closedir(DIR);
-  foreach (@files) {
-    if (($_ ne '.') && ($_ ne '..')) {
-      my ($name, $directories, $suffix) = fileparse($_);
-      # If the current filename is equal to the filename of the open file,
-      if ($safe_dir.'/'.$_ eq $filename) {
-        # then print a list of passwords.
-        $result .= PasswordList($safe_dir.'/'.$_, $master_password);
-      }
-      else {
-        $result .= HtmlPasswordFile($name);
-      }
-    }
-  }
-  $result .= HtmlFilelistFooter();
-  return $result;
-}
-
-sub GroupSort
-{
-  # lc($a->{'group'}) cmp lc($b->{'group'});
-  my @a = SplitGroupname($a->{'Group'});
-  my @b = SplitGroupname($b->{'Group'});
-
-  # Some corner cases:
-  # A has no elements and b has no elements -> Same group, compare title.
-  if (((scalar @a) == 0) and ((scalar @b) == 0)) { return $a->{'Title'} cmp $b->{'Title'}; }
-  # A has no elements.
-  elsif ((scalar @a) == 0) { return 1; }
-  # B has no elements.
-  elsif ((scalar @b) == 0) { return -1;	}
-
-  my $n = 0;
-  while(1) {
-    if ($a[$n] eq $b[$n]) {
-      $n++;
-      # Both are the same group.
-      if (($n == scalar @a) and ($n == scalar @b)) { return 0; }
-      # A is finnished, but not b. So b is a subgroup of a.
-      elsif ($n == scalar @a) { return 1; }
-      # B is finnished, but not a. So a is a subgroup of b.
-      elsif ($n == scalar @b) { return -1; }
-      # None of them is finished. Continue with the next element.
-    }
-    else { return $a[$n] cmp $b[$n]
-    }
-  }
-}
-
-
-sub HtmlFilelistHeader
-{
-  return '<ul class="filelist">';
-}
-
-sub HtmlFilelistFooter
-{
-  return '</ul>';
-}
-
-sub HtmlPasswordFile
-{
-  return sprintf '<li class="file"><a href="javascript:OpenFile(\'%s\')">%s</a></li>', $_[0], $_[0];
-}
-
-# Create the html code for a group header.
-# Params:
-#   - group_id: A string used as id for the group. Must be unique within
-#     the html document. A suggestrion is the group name including all
-#     supergroups (so it is unique).
-#   - group_name: A string displayed as group name in the UI.
-sub HtmlGroupHeader
-{
-  my ($group_id, $group_name) = @_;
-  return sprintf('<li class="group"><a id="%s_link" href="javascript:HideGroup(\'%s\')">%s</a><ul id="%s">', $group_id, $group_id, $group_name, $group_id);
-}
-
-# Create the html code for the end of a group. Must match the code
-# of HtmlGroupHeader.
-sub HtmlGroupFooter
-{
-  return '</ul></li>';
-}
-
-# Create the html code for a password entry in the list.
-# Params:
-#   - filename: The filename in which the password is stored.
-#   - password: A reference to a hash containing password information.
-sub HtmlPasswordList
-{
-  return sprintf '<li class="password"><a href="javascript:OpenPassword(\'%s\',\'%s\')">%s</a></li>', $_[0], $_[1]->{'UUID'}, $_[1]->{'Title'};
-}
-
-# Return a formatted version of a timestamp.
-# Params:
-#   - either one epoch value (# of seconds since 1.1.1900)
-#   - or $sec,$min,$hour,$mday,$mon,$year
-sub HtmlFormatTime
-{
-  my ($sec,$min,$hour,$mday,$mon,$year);
-  if (scalar @_ == 1) { ($sec,$min,$hour,$mday,$mon,$year) = gmtime($_[0]); }
-  else { ($sec,$min,$hour,$mday,$mon,$year) = @_; }
-  return sprintf "%4d-%02d-%02d %02d:%02d:%02d\n", $year+1900,$mon+1,$mday,$hour,$min,$sec;
-}
-
-# Create the html code for the details of a single password.
-# Params:
-#   - password: A reference to a hash containing password information.
-sub HtmlPasswordDetails
-{
-  my $password = $_[0];
-  my $result = "<h3>$password->{'Title'}</h3>";
-  $result .= '<table summary="Password details.">';
-  # TODO: I don't like the names for the hash keys used here.
-  # They depend on the Pwsafe module, so a modification of the Pwsafe module
-  # would also be required to change them.
-  if ($password->{'user'}) { $result .= "<tr><td>User:</td><td>$password->{'user'}</td></tr>"; }
-  if ($password->{'Password'}) {
-    $result .= '<tr><td>Password:</td><td>';
-    $result .= '<input type="hidden" id="hidden_password_field" value="'.$password->{'Password'}.'" />
-               <span id="plaintext_password_field">[hidden]</span>
-               <a id="toggle_password_visibility_link" href="javascript:ShowPassword()">show</a>';
-    $result .= '</td></tr>';
-    }
-  if ($password->{'URL'}) { $result .= "<tr><td>URL:</td><td>$password->{'URL'}</td></tr>"; }
-  if ($password->{'Notes'}) { $result .= "<tr><td>Notes:</td><td>$password->{'Notes'}</td></tr>"; }
-  if ($password->{'ATime'}) { $result .= "<tr><td>Created:</td><td>".HtmlFormatTime($password->{'ATime'})."</td></tr>"; }
-  if ($password->{'RecordMTime'}) { $result .= "<tr><td>Last Modified:</td><td>".HtmlFormatTime($password->{'RecordMTime'})."</td></tr>"; }
-  if ($password->{'PWMTime'}) { $result .= "<tr><td>Last Password Change:</td><td>".HtmlFormatTime($password->{'PWMTime'})."</td></tr>"; }
-  if ($password->{'PWHistory'}) { $result .= "<tr><td></td><td>$password->{'PWHistory'}</td></tr>"; }
-  $result .= "</table>";
-  return $result;
-}
-
-# Change the current group in the html sourcecode.
-# This closes the opened containers for subgroups and
-# opens required containers for the new group.
-# Params:
-#   - old_group: A string naming the old group.
-#   - new_group: A string naming the new group.
-sub HtmlChangeGroup
-{
-  my $last_group = $_[0];
-  my @last_group = SplitGroupname($last_group);
-  my @new_group = SplitGroupname($_[1]);
-  my $common_group = '';
-  my $result = '';
-  my $i = 0;
-  while ( (defined @last_group[$i]) && (defined @new_group[$i]) &&
-          (@last_group[$i] eq @new_group[$i])) {
-    if ($common_group ne '') { $common_group .= '.'; }
-    $common_group .= @new_group[$i];
-    $i++;
-  }
-  # So $i now is the index of the first distinct group entry.
-  # Close every deeper level of the old group.
-  my $close_levels = scalar(@last_group) - $i;
-  while ($close_levels > 0) {
-    $result .= HtmlGroupFooter();
-    $close_levels--;
-  }
-  # And open a div for every deeper new group level.
-  my $open_level = $i;
-  my $group_id = $common_group;
-  while ($open_level < scalar(@new_group)) {
-    if ($group_id ne '') { $group_id .= '.'; }
-    $group_id .= @new_group[$open_level];
-    $result .= HtmlGroupHeader($group_id, @new_group[$open_level]);
-    $open_level++;
-  }
-  return $result;
-}
-
-sub PasswordList($$)
-{
-  my ($filename, $key) = @_;
-  my ($name, $directories, $suffix) = fileparse($filename);
-  my $result;
-  my @passwords = @{Crypt::Pwsafe->new($filename, $key)};
-  # So at this point we have an array containing all passwords.
-  # Sort the passwords by groupname:
-  @passwords = sort GroupSort @passwords;
-  # Create a group from the filename which contains top-level passwords.
-  $result .= HtmlGroupHeader('root', $name);
-  # Print the group and password hierarchy.
-  my $last_group = '';
-  foreach (@passwords) {
-    if ($_->{'Group'} ne $last_group) {
-      $result .= HtmlChangeGroup($last_group, $_->{'Group'});
-      $last_group = $_->{'Group'};
-    }
-    # If the password we want to open is encountered, we save it in
-    # the global $password_hash reference.
-    if ($_->{'UUID'} eq $password) { $password_hash = $_; }
-    $result .= HtmlPasswordList($name, $_);
-  }
-  # Close all groups.
-  $result .= HtmlChangeGroup($last_group, '');
-  # Close the group used for the file.
-  $result .= HtmlGroupFooter();
-  return $result;
+  return (scalar @result);
 }
 
 # Handle the input parameters.
-# TODO: this is user input and has to be checked for sane values!!!
-if ($cgi->param()) {
-  $modulus = $cgi->param('modulus');
-  $encryption_key = OpensslRsaDecrypt($cgi->param('encryption_key'));
-  $request_key = OpensslAesDecrypt($cgi->param('request_key'), $encryption_key);
-  $action = OpensslAesDecrypt($cgi->param('action'), $encryption_key);
-  if ($action eq 'view_file') {
-    $master_password = OpensslAesDecrypt($cgi->param('master_password'), $encryption_key);
-    $filename = $safe_dir.'/'.OpensslAesDecrypt($cgi->param('filename'), $encryption_key);
-#    $page .= '<ul>'.PasswordList($filename, $master_password).'</ul>';
-  }
-  elsif ($action eq 'view_password') {
-    $master_password = OpensslAesDecrypt($cgi->param('master_password'), $encryption_key);
-    $filename = $safe_dir.'/'.OpensslAesDecrypt($cgi->param('filename'), $encryption_key);
-    $password = OpensslAesDecrypt($cgi->param('password'), $encryption_key);
-  }
-  else {
-    $master_password = '';
-    $action = '';
-    $filename = '';
-    $password = '';
-  }
-# $debug .= "encryption_key: $encryption_key<br />\n";
-# $debug .= "request_key: $request_key<br />\n";
-}
-
-# If we never have assigned a public exponent, we need to create a new key.
-if ($modulus eq '') { OpensslGenRsaKey(); }
-
-# Generate the page contents based on the action and parameters.
-$page .= '<div id="web-safe-list">'.PasswordFileList().'</div>';
-# If there is a password hash reference, we display its details.
-if (ref $password_hash) { $page .= '<div id="web-safe-details">'.HtmlPasswordDetails($password_hash).'</div>'; }
-
-# The ResponseForm contains only data from the server to the client.
-$page .= $cgi->start_form(-id=>'ResponseForm',
-                          -onSubmit=>'return false');
-$page .= $cgi->div($cgi->hidden(-name=>'modulus',
-                      -default=>$modulus));
-$page .= $cgi->div($cgi->hidden(-name=>'public_exponent',
-                      -default=>$public_exponent));
-$page .= $cgi->endform;
-
-$page .= $cgi->start_form(-method=>'POST',
-                          -id=>'RequestForm',
-                          -onSubmit=>'EvRequestFormOnSubmit()');
-$page .= $cgi->div($cgi->hidden(-name=>'modulus',
-                      -default=>$modulus));
-$page .= $cgi->div($cgi->hidden(-name=>'encryption_key',
-                      -default=>''));;
-$page .= $cgi->div($cgi->hidden(-name=>'request_key',
-                      -default=>''));
-$page .= $cgi->div($cgi->hidden(-name=>'master_password',
-                      -default=>''));;
-$page .= $cgi->div($cgi->hidden(-name=>'action',
-                      -default=>''));
-$page .= $cgi->div($cgi->hidden(-name=>'filename',
-                      -default=>''));
-$page .= $cgi->div($cgi->hidden(-name=>'password',
-                      -default=>''));
-$page .= $cgi->endform;
-
-#
-#$page .= '<form id="test2">
-#<input type="hidden" id="modulus" value="' . $modulus . '" />
-#<input type="hidden" id="public_exponent" value="' . $public_exponent . '" />
-#       <input type="hidden" id="client_id" value="' . $client_id . '" />
-#       <input type="button" value="copy" onClick="EncryptRequest(); return true;">
-#       <input type="button" value="gen random" onClick="GenerateRandomStr(2); return true;">
-#       <input type="submit" value="submit" /></form>';
-#
-#$page .= 'This is the alternative text!';
-
-# Finally encrypt and base64 encode the page so it can be safely
-# inserted into the javascript section.
-my $page64 = '';
-if ($request_key eq '') {
-  if ($encryption_needed) {
-    # TODO: here, a link to the start page should be given to
-    # restart the process.
-    $page = 'No encryption key was specified for this request.';
-  }
-  $page64 = encode_base64($page);
+# Attention: this is user input and has to be checked for sane values!!!
+# Execute methods based on the action parameter.
+if ((! $cgi->param()) or
+      (! defined $cgi->param('action')) or
+      ($cgi->param('action') eq 'InitSession')) {
+  InitSession();
 }
 else {
-  $page64 = OpensslAesEncrypt($page, $request_key);
+  if ($cgi->param()) {
+    $response->{'type'} = 'session_traffic';
+    # Check for a session id.
+    if (defined $cgi->param('session_id')) {
+      $session_id = $cgi->param('session_id');
+      $session_id =~ s/[^0-9]//g; # Sanity check the session id.
+    }
+    else { $session_id = ''; }
+
+    # If we have a valid session id and an action parameter, we
+    # can continue execution.
+    if (($session_id =~ /^[0-9]+$/)) {
+      $session_key = GetSessionKey();
+
+      my $action = $cgi->param('action');
+      if ($action eq 'SetSessionKey') {
+        my $session_key_encrypted = $cgi->param('session_key');
+        SetSessionKey($session_key_encrypted);
+      }
+      else {
+        $action = OpensslAesDecrypt($cgi->param('action'), $session_key);
+        if ($action eq 'SendFileList') {
+          SendFileList();
+        }
+        elsif ($action eq 'SendPasswordList') {
+          my $master_password = OpensslAesDecrypt($cgi->param('master_password'), $session_key);
+          my $safe_active = OpensslAesDecrypt($cgi->param('safe_active'), $session_key);
+          if (ValidSafe($safe_active)) { SendPasswordList($safe_active, $master_password); }
+          else { $response->{'errmsg'} = 'Invalid safe file.'; }
+          $response->{'master_password'} = $master_password;
+        }
+        elsif ($action eq 'SendPasswordDetails') {
+          my $master_password = OpensslAesDecrypt($cgi->param('master_password'), $session_key);
+          my $safe_active = OpensslAesDecrypt($cgi->param('safe_active'), $session_key);
+          my $password_active = OpensslAesDecrypt($cgi->param('password_active'), $session_key);
+          SendPasswordDetails($safe_active, $password_active, $master_password);
+        }
+      $response->{'action'} = $action;
+      }
+    }
+    else {
+      $response->{'errmsg'} = 'Invalid session id.';
+    }
+  }
 }
-$page64 = JavascriptBase64Format($page64);
-# $page64 = JavascriptBase64Format(encode_base64("<!-- web-safe page start -->\n"));
 
-
-# Write the page contents to the client.
 
 # Send a HTTP header.
-print $cgi->header(-type => 'text/html',
+print $cgi->header(-type => 'application/json',
                      -charset=>'UTF-8',
                      -expires=>'-3d',
                      -'Cache-Control'=>'no-store,no-cache,must-revalidate,private',
                      -Pragma=>'no-cache');
-
-# Send the HTML header. The page contents are sent encrypted
-# within a script block of the header.
-$cgi->default_dtd('-//W3C//DTD XHTML 1.0 Strict//EN',
-            'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd');
-print $cgi->start_html(  -dtd=>1,
-                         -title=>'Online Password Safe',
-                         -author=>'skrug@gmx.at',
-#                         -head=>[meta({-http_equiv=>'Content-Type', -content=>'text/html'}),
-                         -script=>
-                           [
-                             { -type=>'text/javascript',
-                               -src=>$base_uri . '/javascript/gibberish-aes.js' },
-
-                             { -type=>'text/javascript',
-                               -src=>$base_uri . '/javascript/jsbn.js' },
-
-                             { -type=>'text/javascript',
-                               -src=>$base_uri . '/javascript/prng4.js' },
-
-                             { -type=>'text/javascript',
-                               -src=>$base_uri . '/javascript/rng.js' },
-
-                             { -type=>'text/javascript',
-                               -src=>$base_uri . '/javascript/rsa.js' },
-
-                             { -type=>'text/javascript',
-                               -src=>$base_uri . '/javascript/base64.js' },
-
-                             { -type=>'text/javascript',
-                               -src=>$base_uri . '/javascript/encoding.js' },
-
-                             { -type=>'text/javascript',
-                               -src=>$base_uri . '/javascript/pwsafe.js' },
-
-                             { -type=>'text/javascript',
-                               -code=>"var page64 = '$page64'" }
-                           ],
-#                         -meta=>{'keywords'=>'password safe encryption',
-#                                 'copyright'=>'copyright 2009 Stefan Krug'},
-                         -style=>{'src'=>$base_uri . '/pwsafe.css'},
-                         -lang=>'',
-                         -onload=>'EvPwsafeBodyLoad()',
-                         -onkeypress=>'EvPwsafeBodyKeyPress()');
-
-# TODO: clear everything on close!
-
-print '<div id="web-safe-content">&nbsp;</div>';
-print '<div id="web-safe-debug">&nbsp;</div>';
-
-# print $page;
-print $debug;
-# print localtime();
-
-print $cgi->end_html();
+# We should always have a response.
+print EncodeResponse($response);

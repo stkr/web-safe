@@ -1,34 +1,42 @@
 body {
-	background: white;
 	font-family: helvetica, arial, sans-serif;
-}
-
-#frame_headline {
+	margin: 2px;
+	padding: 0;
 }
 
 #web-safe-headline {
 	float: left;
-	width: 59%;
+	margin: 0;
+	padding: 0;
+	width: 45%;
 }
 
 #web-safe-master_password-query {
 	float: right;
-	width: 39%;
-	margin-top: 20px;
+	text-align:right;
+	width: 45%;
+	margin-top: 15px;
+	padding-right: 20px;
 }
 
 #web-safe-error {
-	clear: both;
-}
-
-#frame_main {
+	float:right;
+	border: 1px solid red;
+	margin: 4px;
+	padding: 2px;
+	color: #cc0000;
 }
 
 #web-safe-list {
 	float:left;
-	width:38%;
 	border: 1px dotted black;
+	padding: 0px;
 	overflow: auto;
+}
+
+#web-safe-list ul {
+	margin-left: 1em;
+	padding-left: 1em;
 }
 
 #web-safe-list li.file {
@@ -58,13 +66,8 @@ body {
 
 #web-safe-details {
 	float:right;
-	width:58%;
 }
 
-.error {
-	border: 1px solid red;
-	padding: 2px;
-	color: #cc0000;
-	background: #ffcccc;
+#web-safe-debug {
+	float:right;
 }
-

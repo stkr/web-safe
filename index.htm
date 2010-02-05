@@ -1,23 +1,40 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Frameset//EN"
-"http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd">
-<html>
-<head>
-     <title>Online Password Safe</title>
-     <link rev="made" href="mailto:skrug%40gmx.at" />
-     <link rel="stylesheet" type="text/css" href="pwsafe.css" />
-     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-</head>
-<frameset rows="130, *">
-     <frame id="frame_headline" name="frame_headline" frameborder="0" src="headline.htm" />
-<!--
-#
-# Configuration:
-# -----------------------
-#
-# The src of the "frame_main" frame must point to the pwsafe.cgi script of the application.
-# If you just copied the cgi-bin folder from the package to the cgi-bin directory of your webserver,
-# this probably is already set to the correct location.
--->
-     <frame id="frame_main" name="frame_main" frameborder="0" src="/cgi-bin/web-safe/pwsafe.cgi" />
-</frameset>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+	<head>
+		<title>Online Password Safe - Headline</title>
+		<link rev="made" href="mailto:skrug%40gmx.at" />
+		<link rel="stylesheet" type="text/css" href="pwsafe.css" />
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<script type="text/javascript" src="/web-safe/javascript/gibberish-aes.js"></script>
+		<script type="text/javascript" src="/web-safe/javascript/jsbn.js"></script>
+		<script type="text/javascript" src="/web-safe/javascript/prng4.js"></script>
+		<script type="text/javascript" src="/web-safe/javascript/rng.js"></script>
+		<script type="text/javascript" src="/web-safe/javascript/rsa.js"></script>
+		<script type="text/javascript" src="/web-safe/javascript/base64.js"></script>
+		<script type="text/javascript" src="/web-safe/javascript/encoding.js"></script>
+		<script type="text/javascript" src="/web-safe/javascript/jquery.js"></script>
+		<script type="text/javascript" src="/web-safe/javascript/pwsafe.js"></script>
+		<script type="text/javascript">
+			//<![CDATA[
+			//<!--
+				$(document).ready(
+					function() {
+						WebSafeGUI.Init();
+						WebSafeGUI.QueryMasterPassword();
+					});
+			//-->
+			//]]>
+		</script>
+	</head>
+	<body>
+		<div id="web-safe-header">
+			<h1 id="web-safe-headline">Online Password Safe</h1>
+			<div id="web-safe-master_password-query">
+				<a href="javascript:WebSafeGUI.QueryMasterPassword();">enter master password</a>
+			</div>
+			<hr style="clear:both; border: 2px solid black;" />
+		</div>
+		<div id="web-safe-content"></div>
+	</body>
 </html>
