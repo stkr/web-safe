@@ -363,7 +363,7 @@ var WebSafeGUI = (function()
     $('#web-safe-master_password-query')
         .html(
           '<form action="headline.htm" onsubmit="WebSafeGUI.SubmitMasterPassword(); return false;">' +
-            '<div><input type="password" id="web-safe-master_password-field" name="master_password" size="40" />&nbsp;&nbsp;' +
+            '<div>master password:&nbsp;&nbsp;<input type="password" id="web-safe-master_password-field" name="master_password" size="20" />&nbsp;&nbsp;' +
             '<input type="button" value="unlock" onclick="WebSafeGUI.SubmitMasterPassword()" /><\/div>' +
           '<\/form>');
     $('#web-safe-master_password-field').focus();
