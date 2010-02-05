@@ -285,7 +285,6 @@ var WebSafeGUI = (function()
         padding += "0";
       return padding + amount.toString();
     }
-
   date = date ? new Date(date) : new Date();
   var offset = date.getTimezoneOffset();
   return pad(date.getFullYear(), 4)
@@ -298,6 +297,19 @@ var WebSafeGUI = (function()
       + (offset > 0 ? "-" : "+")
       + pad(Math.floor(Math.abs(offset) / 60), 2)
       + ":" + pad(Math.abs(offset) % 60, 2);
+  }
+
+  /** Convert newlines to <br>.
+   *  Found on http://wiki.github.com/kvz/phpjs/
+   *     example 1: nl2br('Kevin\nvan\nZonneveld');
+   *     returns 1: 'Kevin<br />\nvan<br />\nZonneveld'
+   *     example 2: nl2br("\nOne\nTwo\n\nThree\n", false);
+   *     returns 2: '<br>\nOne<br>\nTwo<br>\n<br>\nThree<br>\n'
+   *     example 3: nl2br("\nOne\nTwo\n\nThree\n", true);
+   *     returns 3: '<br />\nOne<br />\nTwo<br />\n<br />\nThree<br />\n' */
+  var Nl2Br = function (str, is_xhtml) {
+      var breakTag = (is_xhtml || typeof is_xhtml === 'undefined') ? '<br />' : '<br>';
+      return (str + '').replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, '$1'+ breakTag +'$2');
   }
 
   /** Split a groupname to its subgroups. */
@@ -512,7 +524,7 @@ var WebSafeGUI = (function()
       table
         .append($('<tr></tr>')
           .append('<td>Notes:</td>')
-          .append('<td>' + password_details.notes + '</td>')
+          .append('<td>' + Nl2Br(password_details.notes) + '</td>')
         );
     }
     if (password_details.atime) {
