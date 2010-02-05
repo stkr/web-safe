@@ -97,16 +97,22 @@ sub CleanupKeyFiles
 {
   opendir(my $dh, $key_dir) || die "can't opendir $key_dir: $!";
   my @files = readdir($dh);
+  my @remove = ();
   closedir $dh;
   my $now = time();
   foreach (@files) {
-    if($_ =~ /([0-9]*K)[0-9a-fA-F]*\.pem/) {
-      # If the key is older than three hours, delete it.
-      if($1 + 10800 < $now) { unlink($_); }
+    my $filename = "$key_dir/$_";
+    open(FH, $filename);
+    while(<FH>) {
+      if ($_ =~ /^\s*created:\s*([0-9]*)/) {
+        if($1 + 10800 < $now) { push(@remove, $filename); }
+        last;
+      }
     }
+    close FH;
   }
+  foreach (@remove) { unlink($_); }
 }
-
 
 # Reformat a base64 encoded string so it matches a format which
 # can be written to a javascript section in the html file.
@@ -233,6 +239,7 @@ sub OpensslAesDecrypt($$)
 # timestamp is stored in that file. Old session files are deleted.
 sub CreateSession
 {
+  CleanupKeyFiles();
   opendir(DIR, $key_dir);
   my @files = readdir(DIR);
   closedir(DIR);
