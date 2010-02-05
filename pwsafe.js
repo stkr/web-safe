@@ -32,6 +32,10 @@ var AjaxEncryptor = (function()
    *       and the session key. */
   var _auth_protocol_state = 0;
 
+  /** When trying to automatically establish a session, this counter
+   *  is increased to limit the retries. */
+  var _init_session_counter = 0;
+
   /** A function taking an error number and an error message (string)
    *  as parameter which is called whenever an error occurs. */
   var _error_handler = function(nr, msg) { alert(msg + ((nr > 0) ? ('(' + nr + ')') : (''))); };
@@ -51,7 +55,17 @@ var AjaxEncryptor = (function()
   /** Raise an error. */
   var RaiseError = function(nr, msg)
   {
-    if (_error_handler) { _error_handler(nr, msg); }
+    // For session related errors, try to establish
+    // a new session. This means, the user has to execute
+    // the action again.
+    if ((nr > 1000) && (nr < 2000)) {
+      InitSession();
+    }
+    // Other errors are not resolvable here and must be
+    // delegated.
+    else {
+      if (_error_handler) { _error_handler(nr, msg); }
+    }
   };
 
   /** Return a random string. */
@@ -71,12 +85,12 @@ var AjaxEncryptor = (function()
   {
     // Check the protocol state.
     if (_auth_protocol_state != 3) {
-      RaiseError(0, 'AESEncrypt: _auth_protocol_state != 3 ('+_auth_protocol_state+')');
+      RaiseError(3001, 'AESEncrypt: _auth_protocol_state != 3 ('+_auth_protocol_state+')');
       return '';
     }
     // Check the session key.
     if (_session_key.length < 64) {
-      RaiseError(0, 'AESEncrypt: _session_key.length < 64 ('+_session_key.length+')');
+      RaiseError(1002, 'AESEncrypt: _session_key.length < 64 ('+_session_key.length+')');
       return '';
     }
     // Note: GibberishAES.enc does return base64 encoded data already.
@@ -88,12 +102,12 @@ var AjaxEncryptor = (function()
   {
     // Check the protocol state.
     if (_auth_protocol_state != 3) {
-      RaiseError(0, 'AESDecrypt: _auth_protocol_state != 3 ('+_auth_protocol_state+')');
+      RaiseError(3002, 'AESDecrypt: _auth_protocol_state != 3 ('+_auth_protocol_state+')');
       return '';
     }
     // Check the session key.
     if (_session_key.length < 64) {
-      RaiseError(0, 'AESDecrypt: _session_key.length < 64 ('+_session_key.length+')');
+      RaiseError(1002, 'AESDecrypt: _session_key.length < 64 ('+_session_key.length+')');
       return '';
     }
     // Note: GibberishAES.enc does return base64 encoded data already.
@@ -123,17 +137,26 @@ var AjaxEncryptor = (function()
   /** Handle the response of an ajax request. */
   var HandleResponse = function (response)
   {
-    switch (response.type) {
-      case 'server_auth':
-        HandleServerAuth(response);
-        break;
-      case 'session_traffic':
-        HandleSessionTraffic(response);
-        break;
-      default:
-        // something went terribly wrong.
-        RaiseError(0, 'HandleResponse: unknown response type (' + response.type + ')');
-        break;
+    if (response.errmsg) {
+      var nr = 0;
+      if (response.errnr) { nr = response.errnr; }
+      RaiseError(nr, response.errmsg);
+    }
+    else {
+      switch (response.type) {
+        case 'server_auth':
+          HandleServerAuth(response);
+          break;
+        case 'session_traffic':
+          // reset session init counter when receiving session data.
+          _init_session_counter = 0;
+          HandleSessionTraffic(response);
+          break;
+        default:
+          // something went terribly wrong.
+          RaiseError(3003, 'HandleResponse: unknown response type (' + response.type + ')');
+          break;
+      }
     }
   }
 
@@ -170,15 +193,22 @@ var AjaxEncryptor = (function()
       SendRequest(data_transmission);
     }
     else {
-      RaiseError(0, 'SendEncrypted: Cannot send encrypted data without session id.');
+      RaiseError(1001, 'SendEncrypted: Cannot send encrypted data without session id.');
     }
   }
 
   /** Request a public key and a session id from the server. */
   var InitSession = function ()
   {
-    SendRequest();
-    _auth_protocol_state = 1;
+    // Just retry to init a session three times.
+    if (_init_session_counter < 3) {
+      SendRequest();
+      _auth_protocol_state = 1;
+      _init_session_counter++;
+    }
+    else {
+      RaiseError(3004, 'InitSession: Retried too often without success.');
+    }
   };
 
   /** Store public key of the server and session information. */
@@ -211,6 +241,7 @@ var AjaxEncryptor = (function()
     _public_exponent_server = '';
     _session_id = '';
     _auth_protocol_state = 0;
+    _init_session_counter = 0;
   };
 
   // Export some public functions:
@@ -239,7 +270,7 @@ var WebSafeGUI = (function()
   var HandleResponse = function (response)
   {
     if (response.errmsg) {
-      HandleError(0, response.errmsg);
+      HandleError(response.errnr, response.errmsg);
     }
     else if (response.data) {
       if (response.data.files) {
@@ -254,7 +285,7 @@ var WebSafeGUI = (function()
     }
     else {
       // Something went terribly wrong.
-      HandleError(0, 'HandleResponse: Neither data nor errormessage received.');
+      HandleError(3003, 'HandleResponse: Neither data nor errormessage received.');
     }
   };
 
@@ -559,7 +590,7 @@ var WebSafeGUI = (function()
   /** Send the request for opening a file. */
   var OpenFile = function (safe_active) {
     if (_master_password == '') {
-      HandleError(0, 'OpenFile: No master password was entered.');
+      HandleError(2002, 'OpenFile: No master password was entered.');
     }
     else {
       SendRequest({ 'action': 'SendPasswordList',
@@ -585,7 +616,7 @@ var WebSafeGUI = (function()
   /** Send the request for opening a password. */
   var OpenPassword = function (safe_active, password_active) {
     if (_master_password == '') {
-      HandleError(0, 'OpenFile: No master password was entered.');
+      HandleError(2002, 'OpenPassword: No master password was entered.');
     }
     else {
       SendRequest({ 'action': 'SendPasswordDetails',

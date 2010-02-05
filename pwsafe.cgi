@@ -71,9 +71,6 @@ my $cgi = new CGI;
 # Used for printing debug output to the document.
 my $debug = '';
 
-# An errormessage which gets transmitted to the client.
-my $errmsg = '';
-
 # Contains the response which is sent to the client.
 my $response = {};
 
@@ -267,8 +264,15 @@ sub GetSessionKey
       }
     }
     close FH;
+    if ($session_key eq '') {
+      $response->{'errnr'} = 1002;
+      $response->{'errmsg'} = "GetSessionKey: No session key found for session id $session_id.";
+    }
     return $session_key;
   }
+  $response->{'errnr'} = 1001;
+  $response->{'errmsg'} = "Invalid session id ($session_id). Maybe it has expired.";
+  return '';
 }
 
 
@@ -293,10 +297,7 @@ sub GetPasswordList
   my ($safe, $key) = @_;
   my @result = ();
   my $filename = "$safe_dir/$safe";
-  if ( -e $filename) {
-    @result = @{Crypt::Pwsafe->new($filename, $key)};
-  }
-  else { $errmsg = "Uknown file: $filename"; }
+  @result = @{Crypt::Pwsafe->new($filename, $key)};
   return \@result;
 }
 
@@ -371,7 +372,8 @@ sub EncodeResponse
       # If any function has set an errormessage already, use that one.
       # Otherwise, create a new one.
       if (! defined $response->{'errmsg'}) {
-        $response->{'errmsg'} = 'No session key was found.';
+        $response->{'errnr'} = 1002;
+        $response->{'errmsg'} = "No session key found for session id $session_id.";
       }
       delete $response->{'data'};
     }
@@ -485,6 +487,10 @@ sub ValidSafe
   opendir(DIR, $safe_dir);
   my @result = grep { ! /^$filename$/ } readdir(DIR);
   closedir(DIR);
+  if (not (scalar @result)) {
+    $response->{'errnr'} = 2001;
+    $response->{'errmsg'} = 'Invalid safe file.';
+  }
   return (scalar @result);
 }
 
@@ -509,14 +515,13 @@ else {
     # If we have a valid session id and an action parameter, we
     # can continue execution.
     if (($session_id =~ /^[0-9]+$/)) {
-      $session_key = GetSessionKey();
-
       my $action = $cgi->param('action');
       if ($action eq 'SetSessionKey') {
         my $session_key_encrypted = $cgi->param('session_key');
         SetSessionKey($session_key_encrypted);
       }
       else {
+        $session_key = GetSessionKey();
         $action = OpensslAesDecrypt($cgi->param('action'), $session_key);
         if ($action eq 'SendFileList') {
           SendFileList();
@@ -525,7 +530,6 @@ else {
           my $master_password = OpensslAesDecrypt($cgi->param('master_password'), $session_key);
           my $safe_active = OpensslAesDecrypt($cgi->param('safe_active'), $session_key);
           if (ValidSafe($safe_active)) { SendPasswordList($safe_active, $master_password); }
-          else { $response->{'errmsg'} = 'Invalid safe file.'; }
           $response->{'master_password'} = $master_password;
         }
         elsif ($action eq 'SendPasswordDetails') {
@@ -538,7 +542,8 @@ else {
       }
     }
     else {
-      $response->{'errmsg'} = 'Invalid session id.';
+      $response->{'errnr'} = 1001;
+      $response->{'errmsg'} = "Invalid session id.";
     }
   }
 }
