@@ -277,26 +277,22 @@ var WebSafeGUI = (function()
    *  those chars need to be escaped. */
   var ToId = function id(id) { return '#' + id.replace(/(:|\.)/g,'\\$1'); };
 
-  /** Output an ISO timestamp from a usinx timestamp. */
-  var ISOFmtDate = function(date) {
+  /** Convert a unix timestampt to a formatted timestamp. */
+  var FmtDate = function(date) {
     var pad = function (amount, width) {
       var padding = "";
       while (padding.length < width - 1 && amount < Math.pow(10, width - padding.length - 1))
         padding += "0";
       return padding + amount.toString();
     }
-  date = date ? new Date(date) : new Date();
+  date = date ? new Date(date * 1000) : new Date();
   var offset = date.getTimezoneOffset();
   return pad(date.getFullYear(), 4)
       + "-" + pad(date.getMonth() + 1, 2)
       + "-" + pad(date.getDate(), 2)
-      + "T" + pad(date.getHours(), 2)
+      + " " + pad(date.getHours(), 2)
       + ":" + pad(date.getMinutes(), 2)
-      + ":" + pad(date.getSeconds(), 2)
-      + "." + pad(date.getMilliseconds(), 3)
-      + (offset > 0 ? "-" : "+")
-      + pad(Math.floor(Math.abs(offset) / 60), 2)
-      + ":" + pad(Math.abs(offset) % 60, 2);
+      + ":" + pad(date.getSeconds(), 2);
   }
 
   /** Convert newlines to <br>.
@@ -531,21 +527,21 @@ var WebSafeGUI = (function()
       table
         .append($('<tr></tr>')
           .append('<td>Added:</td>')
-          .append('<td>' + ISOFmtDate(password_details.atime) + '</td>')
+          .append('<td>' + FmtDate(password_details.atime) + '</td>')
         );
     }
     if (password_details.mtime) {
       table
         .append($('<tr></tr>')
           .append('<td>Modified:</td>')
-          .append('<td>' + ISOFmtDate(password_details.mtime) + '</td>')
+          .append('<td>' + FmtDate(password_details.mtime) + '</td>')
         );
     }
     if (password_details.pwmtime) {
       table
         .append($('<tr></tr>')
           .append('<td>Last pw change:</td>')
-          .append('<td>' + ISOFmtDate(password_details.pwmtime) + '</td>')
+          .append('<td>' + FmtDate(password_details.pwmtime) + '</td>')
         );
     }
     if (password_details.history) {
