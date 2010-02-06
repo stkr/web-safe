@@ -38,7 +38,9 @@ var AjaxEncryptor = (function()
 
   /** A function taking an error number and an error message (string)
    *  as parameter which is called whenever an error occurs. */
-  var _error_handler = function(nr, msg) { alert(msg + ((nr > 0) ? ('(' + nr + ')') : (''))); };
+  var _error_handler = function(nr, msg, warning) {
+    alert(msg + ((nr > 0) ? ('(' + nr + ')') : ('')));
+  };
 
   /** A function taking a response object as parameter which is called
    *  whenever a response was successfully received. */
@@ -59,6 +61,7 @@ var AjaxEncryptor = (function()
     // a new session. This means, the user has to execute
     // the action again.
     if ((nr > 1000) && (nr < 2000)) {
+      if (_error_handler) { _error_handler(nr, msg, 1); }
       InitSession();
     }
     // Other errors are not resolvable here and must be
@@ -290,11 +293,19 @@ var WebSafeGUI = (function()
   };
 
   /** A handler for the ajax responses. */
-  var HandleError = function (nr, msg)
+  var HandleError = function (nr, msg, warning)
   {
     msg = msg + ((nr > 0) ? ('(' + nr + ')') : (''));
-    $('#web-safe-error').html(msg).show();
-    window.setTimeout(function() {$('#web-safe-error').fadeOut('slow'); }, 3000);
+    var obj = $('#web-safe-error');
+    obj.html(msg).show();
+    if (warning) {
+      obj.removeClass('error').addClass('warning');
+      window.setTimeout(function() { obj.fadeOut('slow'); }, 3000);
+    }
+    else {
+      obj.removeClass('warning').addClass('error');
+      window.setTimeout(function() { obj.fadeOut('slow'); }, 10000);
+    }
   };
 
   /** Send an encrypted ajax request. */

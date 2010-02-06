@@ -21,11 +21,18 @@ body {
 
 #web-safe-error {
 	float:right;
-	border: 1px solid red;
 	margin: 4px;
 	padding: 2px;
-	color: #cc0000;
 }
+.error {
+	border: 1px solid red;
+	background-color: #ff9a9a;
+}
+.warning {
+	border: 1px solid #cccc00;
+	background-color: #ffff73;
+}
+
 
 #web-safe-list {
 	float:left;
