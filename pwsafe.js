@@ -44,7 +44,10 @@ var AjaxEncryptor = (function()
 
   /** A function taking a response object as parameter which is called
    *  whenever a response was successfully received. */
-   var _response_handler = 0;
+  var _response_handler = 0;
+
+  /** A function which is called whenever a session is established. */
+  var _session_established_handler = 0;
 
   /** Return the session id. */
   var GetSessionId = function () { return _session_id; };
@@ -53,6 +56,8 @@ var AjaxEncryptor = (function()
   var SetErrorHandler = function(handler) { _error_handler = handler; };
   /** Set a response handler. */
   var SetResponseHandler = function(handler) { _response_handler = handler; };
+  /** Set a session established handler. */
+  var SetSessionEstablishedHandler = function(handler) { _session_established_handler = handler; };
 
   /** Raise an error. */
   var RaiseError = function(nr, msg)
@@ -217,11 +222,21 @@ var AjaxEncryptor = (function()
   /** Store public key of the server and session information. */
   var HandleServerAuth = function (response)
   {
-    _modulus_server = response.modulus_server;
-    _public_exponent_server = response.public_exponent_server;
-    _session_id = response.session_id;
-    _auth_protocol_state = 2;
-    SendClientSessionKey();
+    if (response.key_verification) {
+      if (AESDecrypt(response.key_verification) == 'key_verification') {
+        if (_session_established_handler) { _session_established_handler(); }
+      }
+      else {
+        RaiseError(1002, 'Invalid session key.');
+      }
+    }
+    else {
+      _modulus_server = response.modulus_server;
+      _public_exponent_server = response.public_exponent_server;
+      _session_id = response.session_id;
+      _auth_protocol_state = 2;
+      SendClientSessionKey();
+    }
   };
 
   /** Send the client-chosen part of the session key. */
@@ -251,6 +266,7 @@ var AjaxEncryptor = (function()
   return {
       'GetSessionId': GetSessionId,
       'SetResponseHandler': SetResponseHandler,
+      'SetSessionEstablishedHandler': SetSessionEstablishedHandler,
       'SetErrorHandler': SetErrorHandler,
       'InitSession': InitSession,
       'ResetSession': ResetSession,
@@ -268,6 +284,10 @@ var WebSafeGUI = (function()
 {
   /** The master password used for opening the safe. */
   var _master_password = '';
+
+  /** A flag indicating whether a session was established
+   *  before. */
+  var _session_established = 0;
 
   /** A handler for the ajax responses. */
   var HandleResponse = function (response)
@@ -305,6 +325,15 @@ var WebSafeGUI = (function()
     else {
       obj.removeClass('warning').addClass('error');
       window.setTimeout(function() { obj.fadeOut('slow'); }, 10000);
+    }
+  };
+
+  /** If no session has been established before, request a file list. */
+  var HandleSessionEstablished = function ()
+  {
+    if (! _session_established) {
+      SendRequest({ 'action': 'SendFileList' });
+      _session_established = 1;
     }
   };
 
@@ -373,6 +402,7 @@ var WebSafeGUI = (function()
   {
     AjaxEncryptor.SetResponseHandler(HandleResponse);
     AjaxEncryptor.SetErrorHandler(HandleError);
+    AjaxEncryptor.SetSessionEstablishedHandler(HandleSessionEstablished);
     AjaxEncryptor.InitSession();
     $('#web-safe-content').empty()
         .append($('<div></div>').attr('id', 'web-safe-list'))

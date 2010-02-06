@@ -417,7 +417,17 @@ sub SetSessionKey
   open FH, " >> $filename";
   print FH 'session_key: '.$session_key."\n";
   close FH;
-  SendFileList();
+  SendSessionEstablished();
+}
+
+
+# Send a session established
+sub SendSessionEstablished
+{
+  $response = { 'disable-encryption' => 1,
+                'type' => 'server_auth',
+                'session_id' => $session_id,
+                'key_verification' => JavascriptBase64Format(OpensslAesEncrypt("key_verification", $session_key)) };
 }
 
 # Add a file list to the response.
