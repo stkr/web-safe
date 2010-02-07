@@ -289,6 +289,11 @@ var WebSafeGUI = (function()
    *  before. */
   var _session_established = 0;
 
+  /** The id of the currently open file. */
+  var _current_file_id = '';
+  /** The id of the currently open group. */
+  var _current_group_id = '';
+
   /** A handler for the ajax responses. */
   var HandleResponse = function (response)
   {
@@ -342,11 +347,6 @@ var WebSafeGUI = (function()
   {
     AjaxEncryptor.SendEncrypted(data);
   };
-
-  /** When using file and groupnames as id values, they might contain
-   *  '.' and ':' which are special characters for css selectors. Therefore,
-   *  those chars need to be escaped. */
-  var ToId = function id(id) { return '#' + id.replace(/(:|\.)/g,'\\$1'); };
 
   /** Convert a unix timestampt to a formatted timestamp. */
   var FmtDate = function(date) {
@@ -450,14 +450,15 @@ var WebSafeGUI = (function()
 
 
   /** Generate the list item for a file in the file list. */
-  var GenFile = function (file) {
+  var GenFile = function (id, file) {
     return $('<li></li>')
-      .attr('id', 'file-' + file)
       .addClass('file')
       .append(
         $('<a></a>')
-          .attr('id', 'lnk-' + file)
-          .attr({"href": "javascript:WebSafeGUI.OpenFile('" + file + "');"})
+          .attr('id', 'file-' + id)
+          .data('name', file)
+          .attr({"href":
+              "javascript:WebSafeGUI.OpenFile('" + id + "');"})
           .html(file)
       );
   }
@@ -465,42 +466,36 @@ var WebSafeGUI = (function()
   /** Generate the file list. This deletes all other controls
    *  except the file list. */
   var GenFileList = function (files) {
+    var id = 0;
     var list = $('<ul></ul>');
-    $.each(files, function(nr, file) { list.append(GenFile(file)); });
+    $.each(files, function(nr, file) {
+      list.append(GenFile(id, file));
+      id++;
+    });
     $('#web-safe-list').empty().append(list);
   }
 
 
-  var GenGroup = function (group_full, group_title)
+  var GenGroup = function (id, group_full, group_title)
   {
     group_title = group_title.replace(/\\\./g, '.');
     return $('<li></li>')
       .addClass('group')
       .append($('<a></a>')
-        .attr('id', 'lnk-' + group_full)
-        .attr({"href": "javascript:WebSafeGUI.OpenGroup('" + group_full + "');"})
+        .attr('id', 'group-' + id)
+        .data('name', group_full)
+        .attr({"href": "javascript:WebSafeGUI.OpenGroup('" + id + "');"})
           .html(group_title)
       )
-      .append($('<ul></ul>')
-        .attr('id', group_full)
-        .hide()
-      );
   }
 
-  /** Generate the password list for a file. */
+  /** Generate the password list for a file.
+   *  This is executed when receiving the password list
+   *  from the server. */
   var GenPasswordList = function (safe_active, passwords) {
 
-    var root_group = $(ToId('file-' + safe_active))
-      .empty()
-      .append(
-        $('<a></a>')
-          .attr('id', 'lnk-' + safe_active)
-          .attr({"href": "javascript:WebSafeGUI.CloseGroup('" + safe_active + "');"})
-          .html(safe_active)
-      )
-      .append($('<ul></ul>')
-        .attr('id', safe_active)
-      );
+    var root_group = $('#file-' + _current_file_id).parent();
+    root_group.find('a:first').attr({"href": "javascript:WebSafeGUI.CloseFile('" + _current_file_id + "');"});
 
     var SortByGroup = function (a, b) {
       a = a.group;
@@ -517,6 +512,7 @@ var WebSafeGUI = (function()
     // Sort by groupname and generate group hierarchy.
     passwords.sort(SortByGroup);
     var groups = {};
+    var group_id = 0;
     $.each(passwords,
       function(index, password) {
         var groupname = password.group;
@@ -530,13 +526,21 @@ var WebSafeGUI = (function()
               if (current_group != '') { current_group += '.'; }
               current_group += part;
               if (! groups[current_group]) {
-                groups[current_group] = GenGroup(current_group, part);
-                parent_group.find('ul:first').append(groups[current_group]);
+                var list = parent_group.find('ul:first');
+                // if no parent list was found, we append it.
+                if (list.length == 0) {
+                  list = $('<ul></ul>').hide();
+                  parent_group.append(list);
+                }
+                groups[current_group] = GenGroup(group_id, current_group, part);
+                list.append(groups[current_group]);
+                group_id++;
               }
               parent_group = groups[current_group];
             });
         }
       });
+    root_group.find('ul:first').show();
 
     // Sort by title and fill in passwords.
     passwords.sort(SortByTitle);
@@ -547,13 +551,21 @@ var WebSafeGUI = (function()
           .addClass('password')
           .append(
             $('<a></a>')
-              .attr('id', 'lnk-' + password.uuid)
+              .attr('id', 'password-' + password.uuid)
               .attr('href', "javascript:WebSafeGUI.OpenPassword('" + safe_active + "', '" + password.uuid + "')")
               .html(password.title)
           );
 
         if (groupname == '') { root_group.find('ul:first').append(obj); }
-        else { $(ToId(password.group)).append(obj) }
+        else {
+          var list = groups[password.group].find('ul:first');
+          // if no parent list was found, we append it.
+          if (list.length == 0) {
+            list = $('<ul></ul>').hide();
+            groups[password.group].append(list);
+          }
+          list.append(obj);
+        }
       });
   }
 
@@ -629,30 +641,43 @@ var WebSafeGUI = (function()
 
 
   /** Send the request for opening a file. */
-  var OpenFile = function (safe_active) {
+  var OpenFile = function (id) {
     if (_master_password == '') {
       HandleError(2002, 'OpenFile: No master password was entered.');
     }
     else {
+      CloseFile(_current_file_id);
+      var safe_active = $('#file-' + id).data('name');
       SendRequest({ 'action': 'SendPasswordList',
                     'master_password': _master_password,
                     'safe_active': safe_active});
+      _current_file_id = id;
     }
   }
 
+  var CloseFile = function (id) {
+    var file = $('#file-' + _current_file_id).parent();
+    file.find('ul:first').remove();
+    file.find('a:first').attr({"href": "javascript:WebSafeGUI.OpenFile('" + id + "');"});
+    _current_file_id = '';
+  }
+
+
   /** Open a group */
-  var OpenGroup = function (groupname) {
-    $(ToId(groupname)).show();
-    $(ToId('lnk-' + groupname)).attr('href', "javascript:WebSafeGUI.CloseGroup('" + groupname + "');");
+  var OpenGroup = function (id) {
+    $('#group-' + id)
+      .attr('href', "javascript:WebSafeGUI.CloseGroup('" + id + "')")
+      .nextAll('ul').show();
+    _current_group_id = id;
   }
 
   /** Close a group */
-  var CloseGroup = function (groupname) {
-    $(ToId(groupname)).hide();
-    $(ToId('lnk-' + groupname)).attr('href', "javascript:WebSafeGUI.OpenGroup('" + groupname + "');");
+  var CloseGroup = function (id) {
+    $('#group-' + id)
+      .attr('href', "javascript:WebSafeGUI.OpenGroup('" + id + "')")
+      .nextAll('ul').hide();
+    _current_group_id = '';
   }
-
-
 
   /** Send the request for opening a password. */
   var OpenPassword = function (safe_active, password_active) {
@@ -672,6 +697,7 @@ var WebSafeGUI = (function()
     'QueryMasterPassword': QueryMasterPassword,
     'SubmitMasterPassword': SubmitMasterPassword,
     'OpenFile': OpenFile,
+    'CloseFile': CloseFile,
     'OpenGroup': OpenGroup,
     'CloseGroup': CloseGroup,
     'OpenPassword': OpenPassword
