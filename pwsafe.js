@@ -432,13 +432,19 @@ var WebSafeGUI = (function()
   var QueryMasterPassword = function ()
   {
     _master_password = '';
-    $('#web-safe-master_password-query')
-        .html(
-          '<form action="headline.htm" onsubmit="WebSafeGUI.SubmitMasterPassword(); return false;">' +
-            '<div>master password:&nbsp;&nbsp;<input type="password" id="web-safe-master_password-field" name="master_password" size="20" />&nbsp;&nbsp;' +
-            '<input type="button" value="unlock" onclick="WebSafeGUI.SubmitMasterPassword()" /><\/div>' +
-          '<\/form>');
-    $('#web-safe-master_password-field').focus();
+    if (top != self) {
+      HandleError(2003, "For security reasons, this application needs to have its own window. " +
+          "<a href=\"#\" target=\"_blank\">Open in new window.</a>");
+    }
+    else {
+      $('#web-safe-master_password-query')
+          .html(
+            '<form action="headline.htm" onsubmit="WebSafeGUI.SubmitMasterPassword(); return false;">' +
+              '<div>master password:&nbsp;&nbsp;<input type="password" id="web-safe-master_password-field" name="master_password" size="20" />&nbsp;&nbsp;' +
+              '<input type="button" value="unlock" onclick="WebSafeGUI.SubmitMasterPassword()" /><\/div>' +
+            '<\/form>');
+      $('#web-safe-master_password-field').focus();
+    }
   }
 
   var SubmitMasterPassword = function ()
