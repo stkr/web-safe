@@ -1,4 +1,4 @@
-
+﻿
  Web-Safe
 ============
 
@@ -161,7 +161,7 @@ plaintext anyway, so this generally is not needed.
 The passwords get never saved to disk in plaintext on the web server.
 However, for Rsa encryption of the communication, the private key for a
 session needs to be stored. Also the session key needs to be saved between
-two requests. This information is stored in tht filesystem of the web
+two requests. This information is stored in the file system of the web
 server. Both keys are stored in plaintext in a single key file. So you
 should ensure that no other system user except the user executing the cgi
 script can read this file.
@@ -211,6 +211,6 @@ recoverable:
 
 - Gracefully handle "Bad safe combination".
 
-- Warning for timeouts and unsucessful clicks.
+- Warning for timeouts and unsuccessful clicks.
 
-- Support htmlentities in all fields!.
+- Support html entities in all fields!.

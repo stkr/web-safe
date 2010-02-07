@@ -1,46 +1,15 @@
 #! /bin/bash
 
-# Where to copy the temporary files to.
-# This is also the name of the root folder in the tgz file.
-# No trailing slash allowed.
-TEMP_PATH='web-safe'
-
-mkdir -p "${TEMP_PATH}"
-chmod 0755 "${TEMP_PATH}";
-
-mkdir -p "${TEMP_PATH}"/cgi-bin
-chmod 0755 "${TEMP_PATH}"/cgi-bin
-
-mkdir -p "${TEMP_PATH}"/cgi-bin/web-safe
-chmod 0755 "${TEMP_PATH}"/cgi-bin/web-safe
-cp -u pwsafe.cgi "${TEMP_PATH}"/cgi-bin/web-safe/pwsafe.cgi
-chmod 0755 "${TEMP_PATH}"/cgi-bin/web-safe/pwsafe.cgi
-cp -u external/Pwsafe.pm "${TEMP_PATH}"/cgi-bin/web-safe/Pwsafe.pm
-chmod 0644 "${TEMP_PATH}"/cgi-bin/web-safe/Pwsafe.pm
-
-mkdir -p "${TEMP_PATH}"/web-safe
-chmod 0755 "${TEMP_PATH}"/web-safe
-cp -u pwsafe.css "${TEMP_PATH}"/web-safe/pwsafe.css
-cp -u index.htm "${TEMP_PATH}"/web-safe/index.htm
-chmod 0644 "${TEMP_PATH}"/web-safe/*
-
-mkdir -p "${TEMP_PATH}"/web-safe/javascript
-chmod 0755 "${TEMP_PATH}"/web-safe/javascript
-cp -u external/gibberish-aes/src/gibberish-aes.min.js "${TEMP_PATH}"/web-safe/javascript/gibberish-aes.js
-cp -u external/rsa/jsbn.js "${TEMP_PATH}"/web-safe/javascript/jsbn.js
-cp -u external/rsa/prng4.js "${TEMP_PATH}"/web-safe/javascript/prng4.js
-cp -u external/rsa/rng.js "${TEMP_PATH}"/web-safe/javascript/rng.js
-cp -u external/rsa/rsa.js "${TEMP_PATH}"/web-safe/javascript/rsa.js
-cp -u external/rsa/base64.js "${TEMP_PATH}"/web-safe/javascript/base64.js
-cp -u external/encoding/encoding.js "${TEMP_PATH}"/web-safe/javascript/encoding.js
-cp -u external/jQuery/jquery-1.4.1.min.js "${TEMP_PATH}"/web-safe/javascript/jquery.js
-cp -u pwsafe.js "${TEMP_PATH}"/web-safe/javascript/pwsafe.js
-chmod 0644 "${TEMP_PATH}"/web-safe/javascript/*
-
-mkdir -p "${TEMP_PATH}"/documentation
-chmod 0755 "${TEMP_PATH}"/documentation
-cp -u documentation/* "${TEMP_PATH}"/documentation
-chmod 0644 "${TEMP_PATH}"/documentation/*
-
-tar cfz web-safe.tgz "${TEMP_PATH}"
-rm -r "${TEMP_PATH}"
+tar --transform 's,^,/web-safe/,' -c -f web-safe.tgz -z \
+	COPYING \
+	README.markdown \
+	cgi-bin \
+	web-safe/index.htm web-safe/css/pwsafe.css \
+	web-safe/js/gibberish-aes/src/gibberish-aes.min.js \
+	web-safe/js/rsa/jsbn.js \
+	web-safe/js/rsa/prng4.js \
+	web-safe/js/rsa/rng.js \
+	web-safe/js/rsa/base64.js \
+	web-safe/js/encoding/encoding.js \
+	web-safe/js/jquery/jquery-1.4.1.min.js \
+	web-safe/js/pwsafe.js
