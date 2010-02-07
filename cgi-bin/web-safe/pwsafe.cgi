@@ -296,8 +296,9 @@ sub GetPasswordList
   my ($safe, $key) = @_;
   my @result = ();
   my $filename = "$safe_dir/$safe";
-  @result = @{Crypt::Pwsafe->new($filename, $key)};
-  return \@result;
+  my $safe = Crypt::Pwsafe->new($filename, $key);
+  if ($safe) { return \@{$safe}; }
+  else { return 0; }
 }
 
 
@@ -447,12 +448,18 @@ sub SendPasswordList
   my ($safe, $key) = @_;
   # Read the available safe files.
   my $passwords = GetPasswordList($safe, $key);
-  # Filter the passwords list before transmission.
-  # It should only contain id, title, group and username.
-  $passwords = FilterDetails($passwords);
-  AppendToResponseData ({ 'action' => 'SendPasswordList',
-                          'safe_active' => $safe,
-                          'passwords' => $passwords });
+  if ($passwords) {
+    # Filter the passwords list before transmission.
+    # It should only contain id, title, group and username.
+    $passwords = FilterDetails($passwords);
+    AppendToResponseData ({ 'action' => 'SendPasswordList',
+                            'safe_active' => $safe,
+                            'passwords' => $passwords });
+  }
+  else {
+    $response->{'errnr'} = 2004;
+    $response->{'errmsg'} = 'Bad safe combination.';
+  }
 }
 
 # Add the password details for a password to the response.
@@ -465,27 +472,33 @@ sub SendPasswordDetails
   my ($safe, $password, $key) = @_;
   # Read the available safe files.
   my $passwords = GetPasswordList($safe, $key);
-  my $password_details = {};
-  foreach (@$passwords) {
-    if ((defined $_->{'UUID'}) and ($_->{'UUID'} eq $password)) {
-      $password_details->{'uuid'} = $_->{'UUID'};
-      if (defined $_->{'User'}) { $password_details->{'user'} = $_->{'User'}; }
-      if (defined $_->{'Title'}) { $password_details->{'title'} = $_->{'Title'}; }
-      if (defined $_->{'Password'}) { $password_details->{'password'} = $_->{'Password'}; }
-      if (defined $_->{'Group'}) { $password_details->{'group'} = $_->{'Group'}; }
-      if (defined $_->{'URL'}) { $password_details->{'url'} = $_->{'URL'}; }
-      if (defined $_->{'Notes'}) { $password_details->{'notes'} = $_->{'Notes'}; }
-      if (defined $_->{'ATime'}) { $password_details->{'atime'} = $_->{'ATime'}; }
-      if (defined $_->{'RecordMTime'}) { $password_details->{'mtime'} = $_->{'RecordMTime'}; }
-      if (defined $_->{'PWMTime'}) { $password_details->{'pwmtime'} = $_->{'PWMTime'}; }
-      if (defined $_->{'PWHistory'}) { $password_details->{'history'} = $_->{'PWHistory'}; }
-      last;
+  if ($passwords) {
+    my $password_details = {};
+    foreach (@$passwords) {
+      if ((defined $_->{'UUID'}) and ($_->{'UUID'} eq $password)) {
+        $password_details->{'uuid'} = $_->{'UUID'};
+        if (defined $_->{'User'}) { $password_details->{'user'} = $_->{'User'}; }
+        if (defined $_->{'Title'}) { $password_details->{'title'} = $_->{'Title'}; }
+        if (defined $_->{'Password'}) { $password_details->{'password'} = $_->{'Password'}; }
+        if (defined $_->{'Group'}) { $password_details->{'group'} = $_->{'Group'}; }
+        if (defined $_->{'URL'}) { $password_details->{'url'} = $_->{'URL'}; }
+        if (defined $_->{'Notes'}) { $password_details->{'notes'} = $_->{'Notes'}; }
+        if (defined $_->{'ATime'}) { $password_details->{'atime'} = $_->{'ATime'}; }
+        if (defined $_->{'RecordMTime'}) { $password_details->{'mtime'} = $_->{'RecordMTime'}; }
+        if (defined $_->{'PWMTime'}) { $password_details->{'pwmtime'} = $_->{'PWMTime'}; }
+        if (defined $_->{'PWHistory'}) { $password_details->{'history'} = $_->{'PWHistory'}; }
+        last;
+      }
     }
+    AppendToResponseData ({ 'action' => 'SendPasswordDetails',
+                            'safe_active' => $safe,
+                            'password_active' => $password,
+                            'password_details' => $password_details});
   }
-  AppendToResponseData ({ 'action' => 'SendPasswordDetails',
-                          'safe_active' => $safe,
-                          'password_active' => $password,
-                          'password_details' => $password_details});
+  else {
+    $response->{'errnr'} = 2004;
+    $response->{'errmsg'} = 'Bad safe combination.';
+  }
 }
 
 

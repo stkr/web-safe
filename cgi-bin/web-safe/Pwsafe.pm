@@ -106,7 +106,7 @@ sub new {
 	warn "$file uses $n_iters iterations of hash?\n" if $n_iters > 20480;
 	my $fhash = substr($header, 40, 32);
 	my $ptag = _stretch_key($salt, $n_iters, $fhash, $pw);
-	die "Bad safe combination.\n" unless $ptag;
+	return 0 unless $ptag; # Return 0 instead of die "Bad safe combination.\n"
 	my $crypt = "";
 	# Assume that the whole PWsafe file can comfortably fit into the memory
 	while ($fh->read(my $buf, 0x400000)) {
