@@ -83,37 +83,24 @@ requests to the hard disk of the host computer.
 
 ### Realization of End-To-End Encryption
 
-The encryption is done using RSA and AES. The scheme for a request from the
-user is as follows:
+A session key is exchanged using Rsa. All further traffic is encrypted with
+Aes in block chaining mode with the exchanged session key.
 
-- The user generates two a random numbers r1 and r2. They are both 256 bits
-long. R1 can be used for the whole session and is therefore called a session
-key.
+The client requests from the server a Rsa public key. The public key is
+transmitted unencrypted from the server to the client.
+The client generates a session key. Using the public key from the server,
+the session key is encrypted and sent to the server.
+The server can decrypt the message and extract the session key using its
+private key. Afterwards, both parties know the session key. All following
+requests and responses are encrypted with the session key.
 
-- With a publicly known key and RSA, the number r1 is encrypted.
-
-- With AES and using r1 as key, r2 and all other request data is encrypted.
-R2 is stored on the client in memory in a html form or javascript variable.
-
-- The encrypted data is base64 encoded to ensure correct transmission and
-sent to the web server.
-
-The web server is able to decrypt the request. It knows the private key for
-the public RSA key and can obtain r1. With r1 the AES decryption of the other
-request data is possible. For the response of the web server, the following
-scheme is used:
-
-- Encrypt the response data with AES using r2 as key.
-
-- Send the encrypted response (base64 encoded) to the client.
-
-The client knows r2 and therefore can decrypt the response data and present
-it to the user on the screen.
+The encrypted data must be considered binary data and is base64 encoded
+before transmission.
 
 
 ### Possible weaknesses
 
-On a foreign host, the environment can not e trusted. There is always the
+On a foreign host, the environment can not be trusted. There is always the
 threat of key loggers or other evil applications (e.g., reading the values
 typed into password fields) being installed. This is a general problem which
 is hard to solve for every secure application and especially for a browser
@@ -127,9 +114,8 @@ allows a manipulation of the application.
 
 As example, the "greasemonkey" extension to the Firefox browser allows the
 injection of Javascript code into the environment of an arbitrary
-application. Therefore, on foreign hosts, it is recommended to
-temporarily disable such extensions while using the password safe
-application.
+application. Therefore, it is recommended to temporarily disable such
+extensions while using the password safe application.
 
 It is no good practice to let one party choose the session key alone, because
 a badly chosen key might circumvent or weaken encryption. However, as the key
@@ -148,7 +134,7 @@ of the application.
 
 #### Thoughts on Safe Hosts
 
-A host can be considered safe when you know that no hostile technology is
+A host can be considered safe when it is known that no hostile technology is
 used which targets on stealing passwords. Hostile technology includes
 keyloggers and memory dumping utilities. If there is a chance, such
 technologies are used on a host, you are advised not to use the
@@ -171,19 +157,20 @@ plaintext anyway, so this generally is not needed.
 
 The passwords get never saved to disk in plaintext on the web server.
 However, for Rsa encryption of the communication, the private key for a
-session needs to be stored. This has to be done in the file system of the
-web server. The key is stored in plaintext. So you should ensure that no
-other system user except the user executing the cgi script can read this
-file. If a user knows the private key for a session and has an encrypted
-request, he can decrypt the request which probably contains your master
-password.
+session needs to be stored. Also the session key needs to be saved between
+two requests. This information is stored in tht filesystem of the web
+server. Both keys are stored in plaintext in a single key file. So you
+should ensure that no other system user except the user executing the cgi
+script can read this file.
+If a user knows the session key and has an encrypted request, he can
+decrypt the request which probably contains the master password.
 This results in all password of the safe being corrupted. One person
 which can always access the key files and might also trace the web server
 requests is the web server operator (e.g., system root user).
-However, this issue is again not related to the
+However, this issue is again not controllable by the
 application. The server operator has full control over the documents
 presented to you and might as well forge you application and present an
-entirely different application (which just might log your master password)
+entirely different application (which might just log your master password)
 to you without you even noticing. So *trust in the server operator is
 necessary* (think twice about deploying this application on rented
 web space).
@@ -192,19 +179,38 @@ web space).
  Known Limitations and Bugs
 ------------------------------
 
-- Cannot handle quotes in groupname correctly (javascript).
-- Cannot handle quotes in filename correctly (javascript).
 
+ Error Codes
+---------------
+
+The following errors are related to the session establishment and might
+get resolved automatically by creation of a new session.
+
+ - 1001: Invalid session id.
+ - 1002: Invalid session key.
+
+
+The following errors should never happen and are not automatically
+recoverable:
+
+ - 2001: Invalid safe.
+ - 2002: No master password.
+ - 2003: The application does not work in a frameset (security).
+ - 3001: Client encrypting in unsuited protocol state.
+ - 3002: Client decrypting in unsuited protocol state.
+ - 3003: Received unknown response type from server.
+ - 3004: Retried too often to initialize a session.
 
  Todo List
 -------------
 
-- The encryption scheme is not optimal. Using Rsa for encrypting a session
-  key is useful when initiating the session, but for subsequent requests,
-  the session key could be stored on the web server. This makes it
-  unnecessary to transmit it again. The transmission of a unique
-  identification for the session should be sufficient.
-
 - In the current state the installation and configuration is rather tricky.
   This should be simplified.
 
+- Restrict the amount of requests to prohibit DoS attacks.
+
+- Gracefully handle "Bad safe combination".
+
+- Warning for timeouts and unsucessful clicks.
+
+- Support htmlentities in all fields!.
