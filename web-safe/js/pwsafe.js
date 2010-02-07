@@ -69,7 +69,7 @@ var AjaxEncryptor = (function()
   /** A function taking an error number and an error message (string)
    *  as parameter which is called whenever an error occurs. */
   var _error_handler = function(nr, msg, warning) {
-    alert(msg + ((nr > 0) ? ('(' + nr + ')') : ('')));
+    alert(msg);
   };
 
   /** A function taking a response object as parameter which is called
@@ -350,7 +350,7 @@ var WebSafeGUI = (function()
   /** A handler for the ajax responses. */
   var HandleError = function (nr, msg, warning)
   {
-    msg = msg + ((nr > 0) ? ('(' + nr + ')') : (''));
+    msg = msg;
     var obj = $('#web-safe-error');
     obj.html(msg).show();
     if (warning) {
