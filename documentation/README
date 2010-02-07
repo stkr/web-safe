@@ -43,8 +43,11 @@ somewhere within the document root of the web server.
 
 When all files have been moved to their locations, a little bit of
 configuration is needed. The necessary configuration values with a more
-detailed description can be found in the *pwsafe.cgi* file and in
-the *index.htm* file.
+detailed description can be found directly in the respective files.
+Following files need to be edited:
+
+ - *cgi-bin/web-safe/pwsafe.cgi*
+ - *web-safe/javascript/pwsafe.js*
 
 
  Security Considerations
@@ -203,9 +206,6 @@ recoverable:
 
  Todo List
 -------------
-
-- In the current state the installation and configuration is rather tricky.
-  This should be simplified.
 
 - Restrict the amount of requests to prohibit DoS attacks.
 

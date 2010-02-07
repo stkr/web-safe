@@ -25,10 +25,6 @@ use warnings;
 # Configuration:
 # -----------------------
 #
-# This is the location which can be used to access the html files of the
-# application. It is recommended to use a server-relative-url
-# (starting with a slash) here.
-my $base_uri='/web-safe';
 # This is the absolute path of the folder where the temporary private key
 # files are stored. It must be writeable by the user which executes the
 # cgi script.
@@ -88,7 +84,6 @@ my $session_key = '';
 
 
 # Sanity check the configuration:
-$base_uri =~ s/\/$//;
 $key_dir =~ s/\/$//;
 $safe_dir =~ s/\/$//;
 
