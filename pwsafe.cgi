@@ -38,6 +38,10 @@ my $key_dir='/srv/www/web-safe/data/';
 # cgi script.
 my $safe_dir='/srv/www/web-safe/safes/';
 #
+# Locations of some used applications:
+my $openssl='/usr/bin/openssl';
+
+#
 # End of Configuration
 # -------------------------
 
@@ -149,7 +153,7 @@ sub OpensslRsaDecrypt($)
   if (-e "$key_dir/$session_id") {
     # Openssl is rather picky about its input format.
     $msg = OpensslBase64Format($msg);
-    return ` echo \"$msg\" | openssl base64 -d | openssl rsautl -decrypt -inkey \"$key_dir/$session_id\" `;
+    return ` echo \"$msg\" | ${openssl} base64 -d | ${openssl} rsautl -decrypt -inkey \"$key_dir/$session_id\" `;
   }
   return '';
 }
@@ -196,10 +200,10 @@ sub OpensslAesCall($$$)
   my $fd_in = fileno(OPENSSL_MSG_READ);
   my $result;
   if ($direction eq 'e') {
-    $result = `openssl enc -e -aes-256-cbc -a -pass file:/proc/$$/fd/$fd_pass -in /proc/$$/fd/$fd_in `;
+    $result = `${openssl} enc -e -aes-256-cbc -a -pass file:/proc/$$/fd/$fd_pass -in /proc/$$/fd/$fd_in `;
   }
   elsif ($direction eq 'd') {
-    $result = `openssl enc -d -aes-256-cbc -a -pass file:/proc/$$/fd/$fd_pass -in /proc/$$/fd/$fd_in `;
+    $result = `${openssl} enc -d -aes-256-cbc -a -pass file:/proc/$$/fd/$fd_pass -in /proc/$$/fd/$fd_in `;
   }
   close OPENSSL_KEY_READ;
   close OPENSSL_MSG_READ;
@@ -245,7 +249,7 @@ sub CreateSession
   while ( (scalar grep {$session_id eq $_} @files) > 0) { $session_id++; }
   my $filename = "$key_dir/$session_id";
   system("echo \"\" > \"$filename\" && chmod 600 \"$filename\"");
-  system("openssl genrsa -f4 1024 >> \"$filename\"");
+  system("${openssl} genrsa -f4 1024 >> \"$filename\"");
   system("echo \"created: ".time()."\" >> \"$filename\"");
 }
 
@@ -395,7 +399,7 @@ sub InitSession
 sub SendServerAuth
 {
   my $filename = "$key_dir/$session_id";
-  my $modulus = `openssl rsa -noout -modulus < \"$filename\"`;
+  my $modulus = `${openssl} rsa -noout -modulus < \"$filename\"`;
   $modulus =~ s/Modulus=//; $modulus =~ s/\n|\r//g;
   $response = { 'disable-encryption' => 1,
                 'type' => 'server_auth',
