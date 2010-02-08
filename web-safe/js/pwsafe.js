@@ -495,7 +495,7 @@ var WebSafeGUI = (function()
           .data('name', file)
           .attr({"href":
               "javascript:WebSafeGUI.OpenFile('" + id + "');"})
-          .html(file)
+          .text(file)
       );
   }
 
@@ -521,7 +521,7 @@ var WebSafeGUI = (function()
         .attr('id', 'group-' + id)
         .data('name', group_full)
         .attr({"href": "javascript:WebSafeGUI.OpenGroup('" + id + "');"})
-          .html(group_title)
+          .text(group_title)
       )
   }
 
@@ -589,7 +589,7 @@ var WebSafeGUI = (function()
             $('<a></a>')
               .attr('id', 'password-' + password.uuid)
               .attr('href', "javascript:WebSafeGUI.OpenPassword('" + safe_active + "', '" + password.uuid + "')")
-              .html(password.title)
+              .text(password.title)
           );
 
         if (groupname == '') { root_group.find('ul:first').append(obj); }
@@ -614,7 +614,9 @@ var WebSafeGUI = (function()
       table
         .append($('<tr></tr>')
           .append('<td>User:</td>')
-          .append('<td>' + password_details.user + '</td>')
+          .append($('<td></td>')
+            .text(password_details.user)
+          )
         );
     }
     if (password_details.password) {
@@ -624,8 +626,8 @@ var WebSafeGUI = (function()
           .append($('<td></td>')
             .attr('id', 'web-safe-password-field')
 //            .data('password', password_details.password)
-            .click(function() { $('#web-safe-password-field').unbind('click').html(password_details.password); })
-            .html('[hidden]')
+            .click(function() { $('#web-safe-password-field').unbind('click').text(password_details.password); })
+            .text('[hidden]')
           )
         );
     }
@@ -633,14 +635,20 @@ var WebSafeGUI = (function()
       table
         .append($('<tr></tr>')
           .append('<td>Url:</td>')
-          .append('<td>' + password_details.url + '</td>')
+          .append($('<td></td>')
+            .text(password_details.url)
+          )
         );
     }
     if (password_details.notes) {
       table
         .append($('<tr></tr>')
           .append('<td>Notes:</td>')
-          .append('<td>' + Nl2Br(password_details.notes) + '</td>')
+          .append($('<td></td>')
+            .html(Nl2Br($('<div/>')
+              .text(password_details.notes).html())
+            )
+          )
         );
     }
     if (password_details.atime) {
@@ -668,7 +676,9 @@ var WebSafeGUI = (function()
       table
         .append($('<tr></tr>')
           .append('<td>History:</td>')
-          .append('<td>' + password_details.history + '</td>')
+          .append($('<td></td>')
+            .text(password_details.history)
+          )
         );
     }
 
