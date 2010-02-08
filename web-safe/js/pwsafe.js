@@ -409,6 +409,10 @@ var WebSafeGUI = (function()
       return (str + '').replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, '$1'+ breakTag +'$2');
   }
 
+  var Htmlentities = function (str) {
+    return $('<div/>').text(str).html();
+  }
+
   /** Split a groupname to its subgroups. */
   var SplitGroupname = function(groupname)
   {
@@ -446,17 +450,17 @@ var WebSafeGUI = (function()
 
   var Resize = function()
   {
-    var margin = 25; // a safety margin for scrollbars and browser differences.
+    var margin = 20; // a safety margin for scrollbars and browser differences.
     var obj = $('#web-safe-error');
     var spacing_error = parseInt(obj.css('margin-left')) +
           parseInt(obj.css('margin-right')) +
           parseInt(obj.css('padding-right')) +
           parseInt(obj.css('padding-right'));
-    $('#web-safe-list').height($(document).height() - margin - $('#web-safe-header').height());
-    $('#web-safe-list').width(($(document).width() - margin) * 0.30);
-    $('#web-safe-error').width(($(document).width() - spacing_error - margin) * 0.70);
-    $('#web-safe-details').width(($(document).width() - margin) * 0.70);
-    $('#web-safe-debug').width(($(document).width() - margin) * 0.70);
+    $('#web-safe-list').height($(window).height() - margin - $('#web-safe-header').height());
+    $('#web-safe-list').width(($(window).width() - margin) * 0.30);
+    $('#web-safe-error').width(($(window).width() - spacing_error - margin) * 0.70);
+    $('#web-safe-details').width(($(window).width() - margin) * 0.70);
+    $('#web-safe-debug').width(($(window).width() - margin) * 0.70);
   }
 
   var QueryMasterPassword = function ()
@@ -483,6 +487,40 @@ var WebSafeGUI = (function()
     $('#web-safe-master_password-query')
         .html('<a href="javascript:WebSafeGUI.QueryMasterPassword();">change master password<\/a>');
   }
+
+  var ShowField = function (field) {
+    field
+      .empty()
+      .text(field.data('plaintext'));
+    field
+      .append('&nbsp;&nbsp;')
+      .append($('<a href="#"></a>')
+        .click( function() { HideField(field); } )
+        .text('hide')
+      );
+    Resize();
+   }
+
+  var HideField = function (field) {
+    field
+      .empty()
+      .text('[hidden]');
+    field
+      .append('&nbsp;&nbsp;')
+      .append($('<a href="#"></a>')
+        .click( function() { ShowField(field); } )
+        .text('show')
+      );
+    Resize();
+  }
+
+  var GenHiddenField = function (data) {
+    var field = $('<span></span>')
+    field.data('plaintext', data)
+    HideField(field);
+    return field;
+  }
+
 
 
   /** Generate the list item for a file in the file list. */
@@ -625,10 +663,7 @@ var WebSafeGUI = (function()
         .append($('<tr></tr>')
           .append('<td>Password:</td>')
           .append($('<td></td>')
-            .attr('id', 'web-safe-password-field')
-//            .data('password', password_details.password)
-            .click(function() { $('#web-safe-password-field').unbind('click').text(password_details.password); })
-            .text('[hidden]')
+            .append(GenHiddenField(Htmlentities(password_details.password)))
           )
         );
     }
@@ -646,8 +681,7 @@ var WebSafeGUI = (function()
         .append($('<tr></tr>')
           .append('<td>Notes:</td>')
           .append($('<td></td>')
-            .html(Nl2Br($('<div/>')
-              .text(password_details.notes).html())
+            .html(Nl2Br(Htmlentities(password_details.notes))
             )
           )
         );
@@ -684,6 +718,7 @@ var WebSafeGUI = (function()
     }
 
     $('#web-safe-details').empty().append(headline).append(table);
+    Resize();
   }
 
 
