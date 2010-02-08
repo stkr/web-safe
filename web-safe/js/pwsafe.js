@@ -409,6 +409,11 @@ var WebSafeGUI = (function()
       return (str + '').replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, '$1'+ breakTag +'$2');
   }
 
+  /** Convert all spaces to non braking spaces. */
+  var Nbsp = function (str) {
+    return str.replace(/ /g, '&nbsp;');
+  }
+
   var Htmlentities = function (str) {
     return $('<div/>').text(str).html();
   }
@@ -560,7 +565,7 @@ var WebSafeGUI = (function()
         .attr('id', 'group-' + id)
         .data('name', group_full)
         .attr({"href": "javascript:WebSafeGUI.OpenGroup('" + id + "');"})
-          .text(group_title)
+          .html(Nbsp(Htmlentities(group_title)))
       )
   }
 
@@ -635,7 +640,7 @@ var WebSafeGUI = (function()
             $('<a></a>')
               .attr('id', 'password-' + password.uuid)
               .attr('href', "javascript:WebSafeGUI.OpenPassword('" + safe_active + "', '" + password.uuid + "')")
-              .text(password.title)
+              .html(Nbsp(Htmlentities(password.title)))
           );
 
         if (groupname == '') { AppendToGroup(root_group, 0, obj); }
@@ -646,14 +651,14 @@ var WebSafeGUI = (function()
   var GenPasswordDetails = function(safe_active, password_active, password_details)
   {
 
-    var headline = $('<h3>' + password_details.title + '</h3>');
+    var headline = $('<h3></h3>').html(Nbsp(Htmlentities(password_details.title)));
     var table = $('<table summary="Password details."></table>');
     if (password_details.user) {
       table
         .append($('<tr></tr>')
           .append('<td>User:</td>')
           .append($('<td></td>')
-            .text(password_details.user)
+            .html(Nbsp(Htmlentities(password_details.user)))
           )
         );
     }
@@ -662,7 +667,7 @@ var WebSafeGUI = (function()
         .append($('<tr></tr>')
           .append('<td>Password:</td>')
           .append($('<td></td>')
-            .append(GenHiddenField(Htmlentities(password_details.password)))
+            .append(GenHiddenField(Nbsp(Htmlentities(password_details.password))))
           )
         );
     }
