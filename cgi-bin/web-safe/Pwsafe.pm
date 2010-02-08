@@ -159,7 +159,7 @@ sub _cbc_twofish {
 	my $pwsafe = [];
 	my $crypt_len = length($crypt);
 	my ($group, $title, $user);
-	my $entry = {};
+	my $entry = {'first' => 1};
 	while($ptr < $crypt_len) {
 		my $curr_plain = $chain_blocks->();
 		# Passwordsafe uses little-endian
@@ -186,20 +186,21 @@ sub _cbc_twofish {
 			print "\tUUID=$entry->{UUID}\n" if $DEBUG;
 		}
 		elsif ($type == 0xff) { # End of Entry
-			# If there is a reasonable uuid,
-			if ((defined $entry->{UUID}) and
+			# If there is a reasonable uuid, the
+			# item is not the first one (the first one is
+			# the database header) and the entry has a title
+			if ((not ($entry->{'first'})) and
+						(defined $entry->{UUID}) and
 						($entry->{UUID} ne '00000000000000000000000000000000') and
-						($entry->{UUID} =~ /^[0-9a-fA-F]+$/)) {
-				# and a title,
-				if (defined $entry->{Title}) {
-					# then save the password.
-
-					# There must always be a group defined!
-					if (not defined $entry->{Group}) { $entry->{Group} = ''; }
-					push (@$pwsafe, $entry);
-					$entry = {};
-				}
+						($entry->{UUID} =~ /^[0-9a-fA-F]+$/) and
+						(defined $entry->{Title})) {
+				# then save the password.
+				# There must always be a group defined!
+				if (not defined $entry->{Group}) { $entry->{Group} = ''; }
+				push (@$pwsafe, $entry);
 			}
+			# Reset everything.
+			$entry = {};
 		}
 		else {
 			my $descr = $FieldType{$type};
