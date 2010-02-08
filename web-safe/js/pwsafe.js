@@ -584,6 +584,17 @@ var WebSafeGUI = (function()
       return a == b ? 0 : (a < b ? -1 : 1)
     }
 
+    var AppendToGroup = function(group, hide, obj) {
+      var list = group.find('ul:first');
+      // if no parent list was found, we append it.
+      if (list.length == 0) {
+        list = $('<ul></ul>');
+        if (hide) { list.hide(); }
+        group.append(list);
+      }
+      if (obj) { list.append(obj); }
+    }
+
     // Sort by groupname and generate group hierarchy.
     passwords.sort(SortByGroup);
     var groups = {};
@@ -601,12 +612,8 @@ var WebSafeGUI = (function()
               if (current_group != '') { current_group += '.'; }
               current_group += part;
               if (! groups[current_group]) {
+                AppendToGroup(parent_group, 1);
                 var list = parent_group.find('ul:first');
-                // if no parent list was found, we append it.
-                if (list.length == 0) {
-                  list = $('<ul></ul>').hide();
-                  parent_group.append(list);
-                }
                 groups[current_group] = GenGroup(group_id, current_group, part);
                 list.append(groups[current_group]);
                 group_id++;
@@ -631,16 +638,8 @@ var WebSafeGUI = (function()
               .text(password.title)
           );
 
-        if (groupname == '') { root_group.find('ul:first').append(obj); }
-        else {
-          var list = groups[password.group].find('ul:first');
-          // if no parent list was found, we append it.
-          if (list.length == 0) {
-            list = $('<ul></ul>').hide();
-            groups[password.group].append(list);
-          }
-          list.append(obj);
-        }
+        if (groupname == '') { AppendToGroup(root_group, 0, obj); }
+        else { AppendToGroup(groups[password.group], 1, obj); }
       });
   }
 
