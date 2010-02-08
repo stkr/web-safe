@@ -7,12 +7,27 @@ A browser based online password safe solution.
  Purpose
 -----------
 
-The purpose of the application is to have access to a password database from
-foreign hosts via an Internet connection without needing any additional
-software except the web browser. The password database is stored in
+The purpose of the application is to have access to a password database via
+an Internet connection without needing any additional software except the web
+browser. The password database is stored in
 an encrypted form on a web server and can be unlocked remotely by providing a
 master password. If a correct master password is given, the user has access
 to all passwords stored in the safe file.
+
+
+ Dependencies and Prerequisites
+----------------------------------
+
+This application requires a webserver which is capable of processing cgi
+requests. It uses perl for decrypting the passowrd database. The
+*Crypt::Pwsafe* module found in CPAN is used for decryption. This module
+requires twofish and AES ECB end CBC encryption modules.
+Furthermore, the server responses are encoded using JSON. Therefore a
+perl JSON module is required.
+
+In Ubuntu 9.10 the required packages are libcrypt-twofish-perl,
+libcrypt-ecb-perl and libcrypt-cbc-perl for encryption and libjson-perl
+for JSON support.
 
 
  Installation
@@ -86,10 +101,10 @@ requests to the hard disk of the host computer.
 
 ### Realization of End-To-End Encryption
 
-A session key is exchanged using Rsa. All further traffic is encrypted with
-Aes in block chaining mode with the exchanged session key.
+A session key is exchanged using RSA. All further traffic is encrypted with
+AES in block chaining mode with the exchanged session key.
 
-The client requests from the server a Rsa public key. The public key is
+The client requests from the server a RSA public key. The public key is
 transmitted unencrypted from the server to the client.
 The client generates a session key. Using the public key from the server,
 the session key is encrypted and sent to the server.
@@ -159,7 +174,7 @@ plaintext anyway, so this generally is not needed.
 #### Webserver Security
 
 The passwords get never saved to disk in plaintext on the web server.
-However, for Rsa encryption of the communication, the private key for a
+However, for RSA encryption of the communication, the private key for a
 session needs to be stored. Also the session key needs to be saved between
 two requests. This information is stored in the file system of the web
 server. Both keys are stored in plaintext in a single key file. So you
@@ -179,9 +194,21 @@ necessary* (think twice about deploying this application on rented
 web space).
 
 
- Known Limitations and Bugs
+ Pulling with Git
 ------------------------------
 
+The source code is maintained in a git repository hosted on github.
+The git repository contains the AES implementation as submodule. It is
+also hosted on github.
+To fetch everything including the AES code, run the following commands:
+
+    git clone git://github.com/stkr/web-safe.git
+    git submodule init
+    git submodule update
+
+
+ Known Limitations and Bugs
+------------------------------
 
  Error Codes
 ---------------
@@ -193,24 +220,28 @@ get resolved automatically by creation of a new session.
  - 1002: Invalid session key.
 
 
-The following errors should never happen and are not automatically
+The following errors are probably user errors. They are not automatically
 recoverable:
 
  - 2001: Invalid safe.
  - 2002: No master password.
  - 2003: The application does not work in a frameset (security).
+ - 2004: Bad safe combination.
+
+The following errors should never happen and are not automatically
+recoverable:
+
  - 3001: Client encrypting in unsuited protocol state.
  - 3002: Client decrypting in unsuited protocol state.
  - 3003: Received unknown response type from server.
  - 3004: Retried too often to initialize a session.
+ - 3005: Invalid parameter (sanity check failed).
+ - 3006: Encryption or decryption error on server.
+ - 3007: Invalid configuration in *pwsafe.cgi*.
 
  Todo List
 -------------
 
-- Restrict the amount of requests to prohibit DoS attacks.
-
-- Gracefully handle "Bad safe combination".
-
-- Warning for timeouts and unsuccessful clicks.
-
-- Support html entities in all fields!.
+ - Restrict the amount of requests to prohibit DoS attacks.
+ - Warning for timeouts and unsuccessful clicks.
+ - Get rid of shell escaping completely.
