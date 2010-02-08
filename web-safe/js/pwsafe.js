@@ -515,6 +515,7 @@ var WebSafeGUI = (function()
   var GenGroup = function (id, group_full, group_title)
   {
     group_title = group_title.replace(/\\\./g, '.');
+    group_title = group_title.replace(/\\\\/g, "\\");
     return $('<li></li>')
       .addClass('group')
       .append($('<a></a>')
