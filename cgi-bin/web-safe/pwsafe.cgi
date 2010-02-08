@@ -1,4 +1,4 @@
-#! /usr/bin/perl
+#! /usr/bin/perl -T
 
 # web-safe - A browser based online password safe solution.
 # Copyright (C) 2010  Stefan Krug
@@ -41,6 +41,12 @@ my $openssl='/usr/bin/openssl';
 # End of Configuration
 # -------------------------
 
+# Deleting environment variables as suggested by official
+# perl security documentation.
+# (http://perldoc.perl.org/perlsec.html)
+$ENV{'PATH'} = '/bin:/usr/bin';
+delete @ENV{'IFS', 'CDPATH', 'ENV', 'BASH_ENV'};
+
 use File::Basename;
 use CGI;
 use CGI::Carp 'fatalsToBrowser';
@@ -49,6 +55,19 @@ $CGI::POST_MAX = 1024 * 100;  # max 100K posts
 $CGI::DISABLE_UPLOADS = 1;  # no uploads
 use MIME::Base64;
 use JSON;
+
+# The directory the script lies in.
+my $script_dir;
+BEGIN {
+  use File::Spec::Functions qw(rel2abs);
+  use File::Basename qw(dirname);
+  my $path = rel2abs($0);
+  $script_dir = dirname($path);
+  # Untaint $script_dir, allowing everything.
+  $script_dir =~ /(.*)/; $script_dir = $1;
+}
+# Allow including modules from $script_dir.
+use lib $script_dir;
 
 # Using the Crypt::Pwsafe module found in CPAN for decrypting the
 # database. Requires the modules Crypt::Twofish and ecb end cbc encryption
@@ -88,6 +107,28 @@ $key_dir =~ s/\/$//;
 $safe_dir =~ s/\/$//;
 
 
+# Send a HTTP header.
+print $cgi->header(-type => 'application/json',
+                     -charset=>'UTF-8',
+                     -expires=>'-3d',
+                     -'Cache-Control'=>'no-store,no-cache,must-revalidate,private',
+                     -Pragma=>'no-cache');
+
+
+# Return an error back to the caller and exit.
+# Params:
+#   - $nr: An errror number.
+#   - $msg: A descriptive error message.
+sub Error
+{
+  my ($nr, $msg) = @_;
+  $response = { 'errnr' => $nr,
+                'errmsg' => $msg };
+  print encode_json($response);
+  exit 1;
+}
+
+
 # Delete old keyfiles.
 sub CleanupKeyFiles
 {
@@ -97,8 +138,10 @@ sub CleanupKeyFiles
   closedir $dh;
   my $now = time();
   foreach (@files) {
-    my $filename = "$key_dir/$_";
-    open(FH, $filename);
+    # Make sure the filename contains no slash and untaint.
+    $_ =~ /^([^\/]*)$/;
+    my $filename = "$key_dir/$1";
+    open(FH, '<', $filename);
     while(<FH>) {
       if ($_ =~ /^\s*created:\s*([0-9]*)/) {
         if($1 + 10800 < $now) { push(@remove, $filename); }
@@ -165,7 +208,7 @@ sub OpensslAesCall($$$)
   my $msg = $_[0];
   my $key = $_[1];
   my $direction = lc($_[2]);
-  if (! $direction =~ /e|d/) { die "OpensslAesCall invoked with illegal direction."; }
+  if (! $direction =~ /e|d/) { Error(3006, 'OpensslAesCall invoked with illegal direction.'); }
 
   # Create two pipes to feed data to the openssl process and make them
   # flush on every print.
@@ -180,13 +223,13 @@ sub OpensslAesCall($$$)
   my $key_pid = fork();
   if($key_pid) { } # Parent
   elsif($key_pid == 0) { print OPENSSL_KEY_WRITE $key; exit; } # Child
-  else { die "Fork did not work\n"; }
+  else { Error(3006, 'OpensslAesCall is unable to fork.'); }
 
   # Create data supplying child:
   my $msg_pid = fork();
   if($msg_pid) { } # Parent
   elsif($msg_pid == 0) { print OPENSSL_MSG_WRITE $msg; exit; } # Child
-  else { die "Fork did not work\n"; }
+  else { Error(3006, 'OpensslAesCall is unable to fork.'); }
 
 # Finally start the openssl executable in the main process:
   close OPENSSL_KEY_WRITE;
@@ -230,22 +273,49 @@ sub OpensslAesDecrypt($$)
 }
 
 
+# Sanitize the input (against all valid base64 characters) and decrypt with
+# openssl. Sanitize the decrypted value again (against a given
+# character class).
+# Params:
+#   - $input: The input to decrypt.
+#   - $key: The key to use for decryption.
+#   - $sane: A character class which the decrypted value must
+#     consist of.
+sub SaneOpensslAesDecrypt
+{
+  my ($input, $key, $sane) = @_;
+  if ($input =~ /^([a-zA-Z0-9+\/=\n]*)$/) {
+    $input = $1;
+    my $decrypted = OpensslAesDecrypt($input, $key);
+    if ($sane) {
+      if ($decrypted =~ /^($sane*)$/) { return $1; }
+      else { return 0; }
+    }
+    else { return $decrypted; }
+  }
+  return 0;
+}
+
+
 # Generate a new session id. This creates a new public key for
 # the session and stores it in a file. Also the session creation
 # timestamp is stored in that file. Old session files are deleted.
 sub CreateSession
 {
   CleanupKeyFiles();
-  opendir(DIR, $key_dir);
+  opendir(DIR, $key_dir) or Error(3007, 'Unable to open key directory.');
   my @files = readdir(DIR);
   closedir(DIR);
   $session_id = 0;
   # While a file with $session_id exists, create a new one.
   while ( (scalar grep {$session_id eq $_} @files) > 0) { $session_id++; }
   my $filename = "$key_dir/$session_id";
-  system("echo \"\" > \"$filename\" && chmod 600 \"$filename\"");
+
+  # Create the file and chmod it (maybe we should use sysopen here?).
+  open(FH, '>', $filename) or Error(3007, 'Unable to create key file.');
+  close(FH); chmod(0600, $filename);
   system("${openssl} genrsa -f4 1024 >> \"$filename\"");
-  system("echo \"created: ".time()."\" >> \"$filename\"");
+  open(FH, '>>', $filename); print(FH 'created: '.time()."\n"); close(FH);
 }
 
 
@@ -255,7 +325,7 @@ sub GetSessionKey
   my $filename = "$key_dir/$session_id";
   if (-e "$filename") {
     my $session_key = '';
-    open FH, " < $filename";
+    open(FH, '<', $filename);
     while(<FH>) {
       if ($_ =~ /^\s*session_key:\s*([a-zA-Z0-9]*)/) {
         $session_key = $1;
@@ -264,13 +334,11 @@ sub GetSessionKey
     }
     close FH;
     if ($session_key eq '') {
-      $response->{'errnr'} = 1002;
-      $response->{'errmsg'} = "GetSessionKey: No session key found for session id $session_id.";
+      Error(1002, "GetSessionKey: No session key found for session id $session_id.");
     }
     return $session_key;
   }
-  $response->{'errnr'} = 1001;
-  $response->{'errmsg'} = "Invalid session id ($session_id). Maybe it has expired.";
+  Error(1001, "Invalid session id ($session_id). Maybe it has expired.");
   return '';
 }
 
@@ -279,7 +347,7 @@ sub GetSessionKey
 # found safe files (without the path).
 sub GetFiles
 {
-  opendir(DIR, $safe_dir);
+  opendir(DIR, $safe_dir) or Error(3007, 'Unable to open safe directory.');
   my @result = grep { ! /^.{1,2}$/ } readdir(DIR);
   closedir(DIR);
   return \@result;
@@ -296,8 +364,8 @@ sub GetPasswordList
   my ($safe, $key) = @_;
   my @result = ();
   my $filename = "$safe_dir/$safe";
-  my $safe = Crypt::Pwsafe->new($filename, $key);
-  if ($safe) { return \@{$safe}; }
+  my $pwsafe = Crypt::Pwsafe->new($filename, $key);
+  if ($pwsafe) { return \@{$pwsafe}; }
   else { return 0; }
 }
 
@@ -414,7 +482,7 @@ sub SetSessionKey
   # This is user input. So we must sanitize it.
   $session_key =~ s/[^0-9a-zA-Z]//g;
   if (length($session_key) < 64) { $session_key = '' };
-  open FH, " >> $filename";
+  open(FH, '>>', $filename) or Error(3007, 'Unable to open key file.');
   print FH 'session_key: '.$session_key."\n";
   close FH;
   SendSessionEstablished();
@@ -456,10 +524,7 @@ sub SendPasswordList
                             'safe_active' => $safe,
                             'passwords' => $passwords });
   }
-  else {
-    $response->{'errnr'} = 2004;
-    $response->{'errmsg'} = 'Bad safe combination.';
-  }
+  else { Error(2004, 'Bad safe combination.'); }
 }
 
 # Add the password details for a password to the response.
@@ -495,26 +560,21 @@ sub SendPasswordDetails
                             'password_active' => $password,
                             'password_details' => $password_details});
   }
-  else {
-    $response->{'errnr'} = 2004;
-    $response->{'errmsg'} = 'Bad safe combination.';
-  }
+  else { Error(2004, 'Bad safe combination.'); }
 }
 
 
 # Check if a specified filename matches a safe.
-sub ValidSafe
+sub ValidateSafe
 {
   my $filename = shift;
   opendir(DIR, $safe_dir);
   my @result = grep { ! /^$filename$/ } readdir(DIR);
   closedir(DIR);
-  if (not (scalar @result)) {
-    $response->{'errnr'} = 2001;
-    $response->{'errmsg'} = 'Invalid safe file.';
-  }
+  if (not (scalar @result)) { Error(2001, 'Invalid safe file.'); }
   return (scalar @result);
 }
+
 
 # Handle the input parameters.
 # Attention: this is user input and has to be checked for sane values!!!
@@ -524,58 +584,58 @@ if ((! $cgi->param()) or
       ($cgi->param('action') eq 'InitSession')) {
   InitSession();
 }
-else {
-  if ($cgi->param()) {
-    $response->{'type'} = 'session_traffic';
-    # Check for a session id.
-    if (defined $cgi->param('session_id')) {
-      $session_id = $cgi->param('session_id');
-      $session_id =~ s/[^0-9]//g; # Sanity check the session id.
-    }
-    else { $session_id = ''; }
+elsif ($cgi->param()) {
+  $response->{'type'} = 'session_traffic';
+  # Check for a session id.
+  if (defined $cgi->param('session_id')) {
+    $session_id = $cgi->param('session_id');
+  }
 
-    # If we have a valid session id and an action parameter, we
-    # can continue execution.
-    if (($session_id =~ /^[0-9]+$/)) {
-      my $action = $cgi->param('action');
-      if ($action eq 'SetSessionKey') {
-        my $session_key_encrypted = $cgi->param('session_key');
-        SetSessionKey($session_key_encrypted);
-      }
-      else {
-        $session_key = GetSessionKey();
-        $action = OpensslAesDecrypt($cgi->param('action'), $session_key);
-        if ($action eq 'SendFileList') {
-          SendFileList();
-        }
-        elsif ($action eq 'SendPasswordList') {
-          my $master_password = OpensslAesDecrypt($cgi->param('master_password'), $session_key);
-          my $safe_active = OpensslAesDecrypt($cgi->param('safe_active'), $session_key);
-          if (ValidSafe($safe_active)) { SendPasswordList($safe_active, $master_password); }
-          $response->{'master_password'} = $master_password;
-        }
-        elsif ($action eq 'SendPasswordDetails') {
-          my $master_password = OpensslAesDecrypt($cgi->param('master_password'), $session_key);
-          my $safe_active = OpensslAesDecrypt($cgi->param('safe_active'), $session_key);
-          my $password_active = OpensslAesDecrypt($cgi->param('password_active'), $session_key);
-          SendPasswordDetails($safe_active, $password_active, $master_password);
-        }
-      $response->{'action'} = $action;
-      }
+  # Sanity check and untaint the session id.
+  if ($session_id =~ /^([0-9]*)$/) { $session_id = $1; }
+  else { Error(1001, 'Invalid session id.'); }
+
+  my $action = $cgi->param('action');
+  if ($action eq 'SetSessionKey') {
+    my $session_key_encrypted = $cgi->param('session_key');
+    if ($session_key_encrypted =~ /^([a-zA-Z0-9+\/=]*)$/) { $session_key_encrypted = $1; }
+    else { Error(1002, 'Invalid session key.'); }
+    SetSessionKey($session_key_encrypted);
+  }
+  else {
+    $session_key = GetSessionKey();
+    $action = SaneOpensslAesDecrypt($cgi->param('action'), $session_key, '[A-Za-z]');
+    if (not $action) { Error(3005, "Invalid parameter (action)."); }
+
+    if ($action eq 'SendFileList') {
+      SendFileList();
     }
-    else {
-      $response->{'errnr'} = 1001;
-      $response->{'errmsg'} = "Invalid session id.";
+    elsif ($action eq 'SendPasswordList') {
+      my $master_password = SaneOpensslAesDecrypt($cgi->param('master_password'), $session_key);
+      if (not $master_password) { Error(3005, 'Invalid parameter (master_password).'); }
+
+      my $safe_active = SaneOpensslAesDecrypt($cgi->param('safe_active'), $session_key);
+      if (not $safe_active) { Error(3005, 'Invalid parameter (safe_active).'); }
+      ValidateSafe($safe_active);
+
+      SendPasswordList($safe_active, $master_password);
     }
+    elsif ($action eq 'SendPasswordDetails') {
+      my $master_password = SaneOpensslAesDecrypt($cgi->param('master_password'), $session_key);
+      if (not $master_password) { Error(3005, 'Invalid parameter (master_password).'); }
+
+      my $safe_active = SaneOpensslAesDecrypt($cgi->param('safe_active'), $session_key);
+      if (not $safe_active) { Error(3005, 'Invalid parameter (safe_active).'); }
+      ValidateSafe($safe_active);
+
+      my $password_active = SaneOpensslAesDecrypt($cgi->param('password_active'), $session_key, '[0-9a-fA-F]');
+      if (not $password_active) { Error(3005, 'Invalid parameter (password_active).'); }
+
+      SendPasswordDetails($safe_active, $password_active, $master_password);
+    }
+  $response->{'action'} = $action;
   }
 }
 
-
-# Send a HTTP header.
-print $cgi->header(-type => 'application/json',
-                     -charset=>'UTF-8',
-                     -expires=>'-3d',
-                     -'Cache-Control'=>'no-store,no-cache,must-revalidate,private',
-                     -Pragma=>'no-cache');
-# We should always have a response.
+# We should always have a response at this point.
 print EncodeResponse($response);
