@@ -647,14 +647,15 @@ var WebSafeGUI = (function()
     $.each(passwords,
       function(index, password) {
         var groupname = password.group;
+        var lnk = $('<a></a>')
+          .attr('id', 'password-' + password.uuid)
+          .attr('href', "javascript:WebSafeGUI.OpenPassword('" + safe_active + "', '" + password.uuid + "')")
+          .html(Nbsp(Htmlentities(password.title)))
+        if (password.user) { lnk.append('&nbsp;[' + Nbsp(Htmlentities(password.user)) + ']'); }
+
         var obj = $('<li></li>')
           .addClass('password')
-          .append(
-            $('<a></a>')
-              .attr('id', 'password-' + password.uuid)
-              .attr('href', "javascript:WebSafeGUI.OpenPassword('" + safe_active + "', '" + password.uuid + "')")
-              .html(Nbsp(Htmlentities(password.title)))
-          );
+          .append(lnk);
 
         if (groupname == '') { AppendToGroup(root_group, 0, obj); }
         else { AppendToGroup(groups[password.group], 1, obj); }

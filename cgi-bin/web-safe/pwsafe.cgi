@@ -402,7 +402,7 @@ sub FilterDetails
     if (defined $_->{'UUID'}) { $password->{'uuid'} = $_->{'UUID'}; }
     if (defined $_->{'Title'}) { $password->{'title'} = $_->{'Title'}; }
     if (defined $_->{'Group'}) { $password->{'group'} = $_->{'Group'}; }
-    if (defined $_->{'user'}) { $password->{'user'} = $_->{'user'}; }
+    if (defined $_->{'User'}) { $password->{'user'} = $_->{'User'}; }
     push(@result, $password);
   }
   return \@result;
