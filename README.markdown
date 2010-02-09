@@ -7,12 +7,29 @@ A browser based online password safe solution.
  Purpose
 -----------
 
-The purpose of the application is to have access to a password database via
-an Internet connection without needing any additional software except the web
-browser. The password database is stored in
-an encrypted form on a web server and can be unlocked remotely by providing a
-master password. If a correct master password is given, the user has access
-to all passwords stored in the safe file.
+Nowadays, when browsing the Internet, for many services, passwords are
+needed. To keep track of the numerous passwords needed for accessing
+various services, it is a good idea to use a password safe.
+A good solution is
+[PasswordSafe][]. This application encrypts many passwords with a master
+password, and so the only password which needs to be remembered is this
+master password.
+
+However, the application is not always available. When sitting in a
+library or using a cell phone, there might be no possibility to install
+the PasswordSafe application. So, a solution is to use a browser based
+safe application. There exist online safe solutions, but if you are
+seriously thinking about security, you won't give away all your passwords
+to an online application where you have no chance to control how the
+sensitive information is handled.
+
+The purpose of Web-Safe is to allow accessing a password safe created
+with PasswordSafe via an Internet connection without needing any
+additional software except the web browser.
+The password database is stored in an encrypted form on a web server and
+can be unlocked remotely by providing a master password. If a correct
+master password is given, the user has access to all passwords stored in
+the safe file.
 
 
  Dependencies and Prerequisites
@@ -28,6 +45,9 @@ Perl JSON module is required.
 In Ubuntu 9.10 the required packages are libcrypt-twofish-perl,
 libcrypt-ecb-perl and libcrypt-cbc-perl for encryption and libjson-perl
 for JSON support.
+
+On the client, a web browser which is capable of interpreting JavaScript
+is necessary.
 
 
  Installation
@@ -205,7 +225,7 @@ running, so it is recommended to log off and log back on to stop those
 applications. Examples for such hosts are university or library computers.
 
 Regarding browser caches, you might clear them after the usage of the
-password safe application, however, no data should be saved to caches in
+password safe application, however, no data can be saved to caches in
 plaintext anyway, so this generally is not needed.
 
 
@@ -284,3 +304,7 @@ recoverable:
  - Restrict the amount of requests to prohibit DoS attacks.
  - Warning for timeouts and unsuccessful clicks.
  - Get rid of shell escaping completely.
+
+
+[PasswordSafe]: http://passwordsafe.sourceforge.net/
+[PasswordSafeOnline]: http://www.passwordsafe.com/
