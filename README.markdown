@@ -1,4 +1,4 @@
-﻿
+
  Web-Safe
 ============
 
@@ -18,12 +18,12 @@ to all passwords stored in the safe file.
  Dependencies and Prerequisites
 ----------------------------------
 
-This application requires a webserver which is capable of processing cgi
-requests. It uses perl for decrypting the passowrd database. The
+This application requires a web server which is capable of processing CGI
+requests. It uses Perl for decrypting the password database. The
 *Crypt::Pwsafe* module found in CPAN is used for decryption. This module
 requires twofish and AES ECB end CBC encryption modules.
 Furthermore, the server responses are encoded using JSON. Therefore a
-perl JSON module is required.
+Perl JSON module is required.
 
 In Ubuntu 9.10 the required packages are libcrypt-twofish-perl,
 libcrypt-ecb-perl and libcrypt-cbc-perl for encryption and libjson-perl
@@ -33,23 +33,23 @@ for JSON support.
  Installation
 ----------------
 
-The application consists of two parts. The cgi part which is executed by the
-web server and the html and javascript part which is displayed and executed by
+The application consists of two parts. The CGI part which is executed by the
+web server and the HTML and JavaScript part which is displayed and executed by
 the web browser.
 
-### Cgi Part Installation
+### CGI Part Installation
 
-The cgi part of the application consists of the *pwsafe.cgi* file and the
-*Pwsafe.pm* perl module. They can be found in the *cgi-bin/web-safe/*
+The CGI part of the application consists of the *pwsafe.cgi* file and the
+*Pwsafe.pm* Perl module. They can be found in the *cgi-bin/web-safe/*
 folder of the distribution package. The easiest method of installation is to
 copy the whole contents including the subdirectory of the *cgi-bin* folder
-of the distribution to the *cgi-bin* folder of the webserver. A typical
+of the distribution to the *cgi-bin* folder of the web server. A typical
 locations for the directory is */usr/lib/cgi-bin/*. The *pwsafe.cgi*
 file has to be executable.
 
-### Html and Javascript Part Installation
+### HTML and JavaScript Part Installation
 
-The other parts of the application are html, css and javascript files which
+The other parts of the application are HTML, CSS and JavaScript files which
 are not executed but delivered directly by the web server. Thus, they must be
 accessible by the web server. Probably it is a good idea to place them
 somewhere within the document root of the web server.
@@ -62,12 +62,12 @@ detailed description can be found directly in the respective files.
 Following files need to be edited:
 
  - *cgi-bin/web-safe/pwsafe.cgi*
- - *web-safe/javascript/pwsafe.js*
+ - *web-safe/js/pwsafe.js*
 
 ### Secure Http Connection
 
-You should access this application only via an encrypted connection (https).
-A javascript check is performed and if not using https, an error containing
+You should access this application only via an encrypted connection (HTTPS).
+A JavaScript check is performed and if not using HTTPS, an error containing
 a link to the secure site is displayed. It is possible, however, to perform
 a redirection already on the server before the document gets delivered.
 
@@ -76,7 +76,7 @@ a redirection already on the server before the document gets delivered.
 The following code snipped used in a *.htaccess* file automatically redirects
 all requests to *http://[some-location]* to *https://[some-location]*:
 
-    # Automatically switch to https.
+    # Automatically switch to HTTPS.
     <IfModule mod_rewrite.c>
       RewriteEngine on
 	    RewriteCond  %{HTTPS} !=on
@@ -84,21 +84,21 @@ all requests to *http://[some-location]* to *https://[some-location]*:
     </IfModule>
 
 The same can also be achieved (more efficiently) directly in the server
-configurtion file by adding the following directive (in server context). Be
+configuration file by adding the following directive (in server context). Be
 sure to adapt the *web-safe-path* to match the correct location. It must not
-be aded for the secure virtual host. This would result in circular
+be added for the secure virtual host. This would result in circular
 redirection.
 
-    # Access to web-safe not allowed via http, but via https:
+    # Access to web-safe not allowed via HTTP, but via HTTPS:
     RedirectMatch ^/web-safe-path(.*) https://www.example.com/web-safe-path$1
 
 Finally, it is also a good idea to disable serving the *cgi-bin/web-safe* via
-http. Either add the directive *SSLRequireSSL On* to a *.htaccess*. file in
+HTTP. Either add the directive *SSLRequireSSL On* to a *.htaccess*. file in
 *cgi-bin/web-safe* or directly in the server configuration file in a
-Directory container. It must be added to the http server as well as to the
-https server.
+Directory container. It must be added to the HTTP server as well as to the
+HTTPS server.
 
-    <Directory "/usr/lib/cgi-bin/web-safe"
+    <Directory "/usr/lib/cgi-bin/web-safe">
       SSlRequireSSL   On
     </Directory>
 
@@ -115,7 +115,7 @@ encryption is realized.
 
 For the sake of security, the traffic from server to client as well as from
 client to server is encrypted. The encryption is done between web server and
-browser using ssl (https). This is a well understood technique to prohibit
+browser using SSL (HTTPS). This is a well understood technique to prohibit
 man in the middle attacks. For this application, however, the level of
 security has to be extended, because the browser can not be trusted. The
 browser may cache pages and requests. The request must contain the master
@@ -125,7 +125,7 @@ on screen to the user). So if no precautions are made, the plaintext values
 for passwords might get saved by the browser.
 
 To prevent leakage of password by browser caches, a first idea is to send
-http header fields which indicate to the browser, that the page should not be
+HTTP header fields which indicate to the browser, that the page should not be
 cached. However, as quick Internet researches show, not all browsers respect
 this method.
 
@@ -209,14 +209,14 @@ password safe application, however, no data should be saved to caches in
 plaintext anyway, so this generally is not needed.
 
 
-#### Webserver Security
+#### Web Server Security
 
 The passwords get never saved to disk in plaintext on the web server.
 However, for RSA encryption of the communication, the private key for a
 session needs to be stored. Also the session key needs to be saved between
 two requests. This information is stored in the file system of the web
 server. Both keys are stored in plaintext in a single key file. So you
-should ensure that no other system user except the user executing the cgi
+should ensure that no other system user except the user executing the CGI
 script can read this file.
 If a user knows the session key and has an encrypted request, he can
 decrypt the request which probably contains the master password.
@@ -241,6 +241,7 @@ also hosted on github.
 To fetch everything including the AES code, run the following commands:
 
     git clone git://github.com/stkr/web-safe.git
+    cd web-safe
     git submodule init
     git submodule update
 
