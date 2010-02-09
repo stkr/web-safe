@@ -1,0 +1,6 @@
+# Try to automatically switch to https.
+<IfModule mod_rewrite.c>
+	RewriteEngine on
+	RewriteCond  %{HTTPS} !=on
+	RewriteRule ^.*$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=permanent,QSA]
+</IfModule>

@@ -64,6 +64,44 @@ Following files need to be edited:
  - *cgi-bin/web-safe/pwsafe.cgi*
  - *web-safe/javascript/pwsafe.js*
 
+### Secure Http Connection
+
+You should access this application only via an encrypted connection (https).
+A javascript check is performed and if not using https, an error containing
+a link to the secure site is displayed. It is possible, however, to perform
+a redirection already on the server before the document gets delivered.
+
+#### Solution for Apache 2.2
+
+The following code snipped used in a *.htaccess* file automatically redirects
+all requests to *http://[some-location]* to *https://[some-location]*:
+
+    # Automatically switch to https.
+    <IfModule mod_rewrite.c>
+      RewriteEngine on
+	    RewriteCond  %{HTTPS} !=on
+	    RewriteRule ^.*$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=permanent,QSA]
+    </IfModule>
+
+The same can also be achieved (more efficiently) directly in the server
+configurtion file by adding the following directive (in server context). Be
+sure to adapt the *web-safe-path* to match the correct location. It must not
+be aded for the secure virtual host. This would result in circular
+redirection.
+
+    # Access to web-safe not allowed via http, but via https:
+    RedirectMatch ^/web-safe-path(.*) https://www.example.com/web-safe-path$1
+
+Finally, it is also a good idea to disable serving the *cgi-bin/web-safe* via
+http. Either add the directive *SSLRequireSSL On* to a *.htaccess*. file in
+*cgi-bin/web-safe* or directly in the server configuration file in a
+Directory container. It must be added to the http server as well as to the
+https server.
+
+    <Directory "/usr/lib/cgi-bin/web-safe"
+      SSlRequireSSL   On
+    </Directory>
+
 
  Security Considerations
 ---------------------------

@@ -348,18 +348,22 @@ var WebSafeGUI = (function()
   };
 
   /** A handler for the ajax responses. */
-  var HandleError = function (nr, msg, warning)
+  var HandleError = function (nr, msg, warning, persistent)
   {
     msg = msg;
     var obj = $('#web-safe-error');
     obj.html(msg).show();
     if (warning) {
       obj.removeClass('error').addClass('warning');
-      window.setTimeout(function() { obj.fadeOut('slow'); }, 3000);
+      if (! persistent) {
+        window.setTimeout(function() { obj.fadeOut('slow'); }, 3000);
+      }
     }
     else {
       obj.removeClass('warning').addClass('error');
-      window.setTimeout(function() { obj.fadeOut('slow'); }, 10000);
+      if (! persistent) {
+        window.setTimeout(function() { obj.fadeOut('slow'); }, 10000);
+      }
     }
   };
 
@@ -439,10 +443,6 @@ var WebSafeGUI = (function()
 
   var Init = function()
   {
-    AjaxEncryptor.SetResponseHandler(HandleResponse);
-    AjaxEncryptor.SetErrorHandler(HandleError);
-    AjaxEncryptor.SetSessionEstablishedHandler(HandleSessionEstablished);
-    AjaxEncryptor.InitSession();
     $('#web-safe-content').empty()
         .append($('<div></div>').attr('id', 'web-safe-list'))
         .append($('<div></div>').attr('id', 'web-safe-error'))
@@ -451,6 +451,25 @@ var WebSafeGUI = (function()
     $('#web-safe-error').hide();
     Resize();
     $(window).resize(Resize);
+
+    if (window.location.protocol != 'https:') {
+      var oldURL = window.location.hostname + window.location.pathname;
+      var newURL = "https://" + oldURL;
+      HandleError(2003, "This application needs an encrypted connection. " +
+          '<a href="' + newURL + '" >Switch to https.</a>', 0, 1);
+    }
+    else {
+      if (top != self) {
+        HandleError(2003, "For security reasons, this application needs to have its own window. " +
+            "<a href=\"#\" target=\"_blank\">Open in new window.</a>", 0, 1);
+      }
+      else {
+        AjaxEncryptor.SetResponseHandler(HandleResponse);
+        AjaxEncryptor.SetErrorHandler(HandleError);
+        AjaxEncryptor.SetSessionEstablishedHandler(HandleSessionEstablished);
+        AjaxEncryptor.InitSession();
+      }
+    }
   }
 
   var Resize = function()
@@ -471,19 +490,13 @@ var WebSafeGUI = (function()
   var QueryMasterPassword = function ()
   {
     _master_password = '';
-    if (top != self) {
-      HandleError(2003, "For security reasons, this application needs to have its own window. " +
-          "<a href=\"#\" target=\"_blank\">Open in new window.</a>");
-    }
-    else {
-      $('#web-safe-master_password-query')
-          .html(
-            '<form action="headline.htm" onsubmit="WebSafeGUI.SubmitMasterPassword(); return false;">' +
-              '<div>master password:&nbsp;&nbsp;<input type="password" id="web-safe-master_password-field" name="master_password" size="20" />&nbsp;&nbsp;' +
-              '<input type="button" value="unlock" onclick="WebSafeGUI.SubmitMasterPassword()" /><\/div>' +
-            '<\/form>');
-      $('#web-safe-master_password-field').focus();
-    }
+    $('#web-safe-master_password-query')
+      .html(
+        '<form action="headline.htm" onsubmit="WebSafeGUI.SubmitMasterPassword(); return false;">' +
+          '<div>master password:&nbsp;&nbsp;<input type="password" id="web-safe-master_password-field" name="master_password" size="20" />&nbsp;&nbsp;' +
+          '<input type="button" value="unlock" onclick="WebSafeGUI.SubmitMasterPassword()" /><\/div>' +
+        '<\/form>');
+    $('#web-safe-master_password-field').focus();
   }
 
   var SubmitMasterPassword = function ()
