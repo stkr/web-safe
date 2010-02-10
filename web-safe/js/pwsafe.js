@@ -509,7 +509,7 @@ var WebSafeGUI = (function()
   var ShowField = function (field) {
     field
       .empty()
-      .text(field.data('plaintext'));
+      .html(field.data('plaintext'));
     field
       .append('&nbsp;&nbsp;')
       .append($('<a href="#"></a>')
